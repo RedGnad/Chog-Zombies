@@ -20,19 +20,21 @@ namespace ChogZombies.Player
         [SerializeField] float fireRate = 3f; // bullets per second
         [SerializeField] float projectileSpeed = 20f;
         [SerializeField] float baseDamagePerShot = 5f;
+        [SerializeField] float powerDamageMultiplier = 1.2f;
         [SerializeField] Transform firePoint;
         [SerializeField] Vector3 projectileScale = new Vector3(0.25f, 0.25f, 0.25f);
-        [SerializeField] float projectileLifetime = 1.0f;
+        [SerializeField] float projectileLifetime = 0.6f;
 
         [Header("Shooting Tuning")]
-        [SerializeField] float maxShootDistance = 20f;
+        [SerializeField] float maxShootDistance = 12f;
         [SerializeField] float targetDetectionRadius = 1.0f;
 
         [Header("Visual Crowd")]
         [SerializeField] Transform visualRoot;
-        [SerializeField] float minVisualScale = 0.5f;
-        [SerializeField] float maxVisualScale = 3f;
-        [SerializeField] int soldiersAtMaxScale = 50;
+        [SerializeField] float minVisualScale = 0.85f;
+        [SerializeField] float maxVisualScale = 2.2f;
+        [SerializeField] int soldiersAtMaxScale = 70;
+        [SerializeField] float visualScaleExponent = 0.75f;
 
         float _fireTimer;
 
@@ -108,9 +110,15 @@ namespace ChogZombies.Player
             Vector3 dir = transform.forward;
 
             float clampedBase = Mathf.Min(baseDamagePerShot, 50f);
-            float damage = clampedBase + SoldierCount;
+            float powerBonus = Mathf.Pow(Mathf.Max(1, SoldierCount), 0.4f) * powerDamageMultiplier;
+            float damage = clampedBase + powerBonus;
 
-            Projectile.SpawnProjectile(origin, dir, projectileSpeed, damage, projectileScale, projectileLifetime);
+            float maxLifetimeByDistance = projectileSpeed > 0.01f
+                ? (maxShootDistance / projectileSpeed)
+                : projectileLifetime;
+            float life = Mathf.Max(0.05f, Mathf.Min(projectileLifetime, maxLifetimeByDistance));
+
+            Projectile.SpawnProjectile(origin, dir, projectileSpeed, damage, projectileScale, life);
         }
 
 
@@ -132,11 +140,27 @@ namespace ChogZombies.Player
                 case GateType.Multiply3:
                     SoldierCount *= 3;
                     break;
+                case GateType.Multiply:
+                    float multiplier = Mathf.Max(0f, gate.Value / 100f);
+                    SoldierCount = Mathf.RoundToInt(SoldierCount * multiplier);
+                    break;
             }
 
             SoldierCount = Mathf.Clamp(SoldierCount, minSoldiers, maxSoldiers);
 
             Debug.Log($"Gate {gate.Type} {gate.Value}: soldiers {before} -> {SoldierCount}");
+
+            UpdateVisualSoldiers();
+        }
+
+        public void AddPower(int amount)
+        {
+            if (amount <= 0)
+                return;
+
+            int before = SoldierCount;
+            SoldierCount = Mathf.Clamp(SoldierCount + amount, minSoldiers, maxSoldiers);
+            Debug.Log($"Enemy reward: +{amount} power ({before} -> {SoldierCount})");
 
             UpdateVisualSoldiers();
         }
@@ -174,6 +198,9 @@ namespace ChogZombies.Player
             {
                 t = Mathf.Clamp01((power - 1) / (float)(soldiersAtMaxScale - 1));
             }
+
+            float exp = Mathf.Max(0.05f, visualScaleExponent);
+            t = Mathf.Pow(t, exp);
 
             float scaleFactor = Mathf.Lerp(minVisualScale, maxVisualScale, t);
             visualRoot.localScale = _baseVisualScale * scaleFactor;

@@ -17,6 +17,10 @@ namespace ChogZombies.Player
         
         [Header("Visual Settings")]
         [SerializeField] float soldierScaleMultiplier = 1.5f;
+
+        [Header("Visual Progression")]
+        [SerializeField] int extraPowerCostStart = 2;
+        [SerializeField] int extraPowerCostIncrease = 2;
         
         Queue<GameObject> _pool = new Queue<GameObject>();
         List<GameObject> _activeSoldiers = new List<GameObject>();
@@ -116,9 +120,9 @@ namespace ChogZombies.Player
 
         void UpdateVisualSoldiers(int count)
         {
-            // On représente uniquement les soldats supplémentaires autour du soldat principal
-            int extra = Mathf.Max(count - 1, 0);
-            int targetCount = Mathf.Min(extra, poolSize);
+            // On représente uniquement les soldats supplémentaires autour du soldat principal,
+            // mais avec un coût croissant en puissance pour éviter d'afficher 10 soldats trop vite.
+            int targetCount = Mathf.Min(ComputeVisibleExtraSoldiers(count), poolSize);
 
             // Retourner les soldats en trop au pool
             while (_activeSoldiers.Count > targetCount)
@@ -138,6 +142,25 @@ namespace ChogZombies.Player
             }
 
             UpdateSoldierPositions();
+        }
+
+        int ComputeVisibleExtraSoldiers(int power)
+        {
+            int p = Mathf.Max(power, 1);
+            int remaining = Mathf.Max(p - 1, 0);
+
+            int cost = Mathf.Max(1, extraPowerCostStart);
+            int inc = Mathf.Max(0, extraPowerCostIncrease);
+
+            int extra = 0;
+            while (extra < poolSize && remaining >= cost)
+            {
+                remaining -= cost;
+                extra++;
+                cost += inc;
+            }
+
+            return extra;
         }
 
         void UpdateSoldierPositions()

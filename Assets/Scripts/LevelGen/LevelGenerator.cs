@@ -28,19 +28,19 @@ namespace ChogZombies.LevelGen
             };
 
             // Niveau un peu plus long : plus de segments au fur et à mesure
-            int segments = 4 + (levelIndex - 1) / 3;
-            segments = Mathf.Clamp(segments, 4, 9);
+            int segments = 6 + (levelIndex - 1) / 2;
+            segments = Mathf.Clamp(segments, 6, 14);
 
             for (int j = 0; j < segments; j++)
             {
                 var segment = new SegmentData
                 {
-                    LeftGate = GenerateGate(rng),
-                    RightGate = GenerateGate(rng)
+                    LeftGate = GenerateGate(rng, levelIndex),
+                    RightGate = GenerateGate(rng, levelIndex)
                 };
 
-                int baseEnemyCount = BaseEnemyCount + (levelIndex - 1) / 2;
-                int delta = rng.Next(0, 3);
+                int baseEnemyCount = BaseEnemyCount + (levelIndex - 1) / 3;
+                int delta = rng.Next(0, 4);
                 segment.EnemyCount = baseEnemyCount + delta;
 
                 level.Segments.Add(segment);
@@ -51,43 +51,58 @@ namespace ChogZombies.LevelGen
             return level;
         }
 
-        static GateData GenerateGate(System.Random rng)
+        static GateData GenerateGate(System.Random rng, int levelIndex)
         {
             int t = rng.Next(0, 1000);
 
-            // Portes plus modestes: petites additions/soustractions fréquentes,
-            // multiplicateurs plus rares pour éviter une explosion du nombre de soldats.
-            if (t < 400)
+            int l = Math.Max(1, levelIndex);
+            int addMax = Mathf.Clamp(4 + (l - 1) / 4, 4, 8);
+            int subMax = Mathf.Clamp(4 + (l - 1) / 3, 4, 10);
+
+            int addThreshold = Mathf.Clamp(430 - (l - 1) * 8, 250, 430);
+            int subThreshold = addThreshold + Mathf.Clamp(320 + (l - 1) * 8, 320, 520);
+            int mulThreshold = subThreshold + Mathf.Clamp(200 - (l - 1) * 4, 80, 200);
+
+            if (t < addThreshold)
             {
                 return new GateData
                 {
                     Type = GateType.Add,
-                    Value = 1 + (t % 5) // +1 à +5
+                    Value = 1 + (t % addMax)
                 };
             }
 
-            if (t < 700)
+            if (t < subThreshold)
             {
                 return new GateData
                 {
                     Type = GateType.Subtract,
-                    Value = 1 + (t % 5) // -1 à -5
+                    Value = 1 + (t % subMax)
                 };
             }
 
-            if (t < 900)
+            if (t < mulThreshold)
             {
+                int roll = rng.Next(0, 1000);
+
+                int pct;
+                if (roll < 300) pct = 110;
+                else if (roll < 600) pct = 120;
+                else if (roll < 800) pct = 130;
+                else if (roll < 960) pct = 150;
+                else pct = 200; // x2 très rare
+
                 return new GateData
                 {
-                    Type = GateType.Multiply2,
-                    Value = 2
+                    Type = GateType.Multiply,
+                    Value = pct
                 };
             }
 
             return new GateData
             {
-                Type = GateType.Multiply3,
-                Value = 3
+                Type = GateType.Multiply,
+                Value = 150
             };
         }
 
@@ -126,8 +141,11 @@ namespace ChogZombies.LevelGen
             float enemyHpScale = 1.0f + 0.06f * (levelIndex - 1);
             float enemyDamageScale = 1.0f + 0.04f * (levelIndex - 1);
 
-            float bossHpScale = 1.0f + 0.08f * (levelIndex - 1);
-            float bossDamageScale = 1.0f + 0.05f * (levelIndex - 1);
+            float l = Mathf.Max(1, levelIndex);
+            float k = (l - 1f);
+            float bossHpScale = 1.0f + 0.12f * k + 0.005f * k * k;
+
+            float bossDamageScale = 1.0f + 0.06f * k;
 
             boss.Pattern = pattern;
             boss.Hp = Mathf.RoundToInt(BaseBossHp * bossHpScale * hpMultiplier);

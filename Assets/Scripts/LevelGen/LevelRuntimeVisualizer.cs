@@ -14,6 +14,7 @@ namespace ChogZombies.LevelGen
         [SerializeField] float gateHeight = 1.5f;
         [SerializeField] float enemyOffsetZ = 3f;
         [SerializeField] float enemyHeight = 1f;
+        [SerializeField] float enemyLaneOffsetX = 2.0f;
 
         [Header("Visual Settings")] 
         [SerializeField] Vector3 gateSize = new Vector3(1f, 2f, 0.5f);
@@ -23,6 +24,46 @@ namespace ChogZombies.LevelGen
         void Start()
         {
             BuildWithParams(levelIndex, seed);
+        }
+
+        int GetEnemyGroupsInRow(int levelIndex, int segmentIndex, int segmentCount)
+        {
+            int l = Mathf.Max(1, levelIndex);
+            if (segmentCount <= 1)
+                return 1;
+
+            float progress = segmentIndex / (float)(segmentCount - 1);
+
+            // Plus on est loin dans le niveau et plus le niveau est élevé, plus on densifie.
+            int groups = 1;
+            if (l >= 7 && progress > 0.45f)
+                groups = 2;
+            if (l >= 12 && progress > 0.7f)
+                groups = 3;
+
+            return Mathf.Clamp(groups, 1, 3);
+        }
+
+        void SpawnEnemyRow(int groupsInRow, int enemyCount, float z)
+        {
+            groupsInRow = Mathf.Clamp(groupsInRow, 1, 3);
+
+            if (groupsInRow == 1)
+            {
+                CreateEnemyGroup(enemyCount, new Vector3(0f, enemySizeBase.y * 0.5f, z));
+                return;
+            }
+
+            if (groupsInRow == 2)
+            {
+                CreateEnemyGroup(enemyCount, new Vector3(-enemyLaneOffsetX, enemySizeBase.y * 0.5f, z));
+                CreateEnemyGroup(enemyCount, new Vector3(enemyLaneOffsetX, enemySizeBase.y * 0.5f, z));
+                return;
+            }
+
+            CreateEnemyGroup(enemyCount, new Vector3(-enemyLaneOffsetX, enemySizeBase.y * 0.5f, z));
+            CreateEnemyGroup(enemyCount, new Vector3(0f, enemySizeBase.y * 0.5f, z));
+            CreateEnemyGroup(enemyCount, new Vector3(enemyLaneOffsetX, enemySizeBase.y * 0.5f, z));
         }
 
         public void BuildWithParams(int newLevelIndex, int newSeed)
@@ -52,7 +93,8 @@ namespace ChogZombies.LevelGen
                 CreateGate(segment.RightGate, new Vector3(gateOffsetX, gateSize.y * 0.5f, z));
 
                 // Représentation simple des ennemis: un cube dont la taille X reflète enemyCount
-                CreateEnemyGroup(segment.EnemyCount, new Vector3(0f, enemySizeBase.y * 0.5f, z + enemyOffsetZ));
+                int groupsInRow = GetEnemyGroupsInRow(level.LevelIndex, i, level.Segments.Count);
+                SpawnEnemyRow(groupsInRow, segment.EnemyCount, z + enemyOffsetZ);
             }
 
             // Boss à la fin du couloir
@@ -78,8 +120,7 @@ namespace ChogZombies.LevelGen
             // Label textuel pour expliquer l'effet de la porte
             var labelGo = new GameObject("GateLabel");
             labelGo.transform.SetParent(go.transform, false);
-            // On centre le texte au milieu de la porte, légèrement décollé de la face avant
-            labelGo.transform.localPosition = new Vector3(0f, gateSize.y * 0.5f, gateSize.z * 0.5f + 0.01f);
+            labelGo.transform.localPosition = new Vector3(0f, 0f, gateSize.z * 0.5f + 0.01f);
             labelGo.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // vers la caméra (qui regarde +Z)
 
             var text = labelGo.AddComponent<TextMesh>();
@@ -108,7 +149,8 @@ namespace ChogZombies.LevelGen
             go.transform.localPosition = position;
 
             // On encode grossièrement le nombre d'ennemis dans la taille en X
-            float scaleX = Mathf.Clamp(enemyCount / 3f, 1f, 8f);
+            // Largeur plus importante pour rendre les groupes moins esquivables
+            float scaleX = Mathf.Clamp(1.2f + enemyCount * 0.22f, 1.3f, 4.2f);
             go.transform.localScale = new Vector3(scaleX, enemySizeBase.y, enemySizeBase.z);
 
             var renderer = go.GetComponent<Renderer>();
@@ -119,7 +161,7 @@ namespace ChogZombies.LevelGen
             }
 
             var enemy = go.AddComponent<Enemies.EnemyGroupBehaviour>();
-            enemy.Initialize(enemyCount);
+            enemy.Initialize(enemyCount, levelIndex);
 
             var col = go.GetComponent<Collider>();
             if (col != null)
@@ -177,6 +219,8 @@ namespace ChogZombies.LevelGen
                     return Color.blue;
                 case GateType.Multiply3:
                     return new Color(0.8f, 0f, 0.8f); // magenta
+                case GateType.Multiply:
+                    return new Color(0.2f, 0.7f, 1f);
                 default:
                     return Color.white;
             }
@@ -193,6 +237,9 @@ namespace ChogZombies.LevelGen
                 case GateType.Multiply2:
                 case GateType.Multiply3:
                     return $"x{gate.Value}";
+                case GateType.Multiply:
+                    float mul = gate.Value / 100f;
+                    return $"x{mul:0.##}";
                 default:
                     return string.Empty;
             }

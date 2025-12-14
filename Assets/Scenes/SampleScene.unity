@@ -724,6 +724,7 @@ MonoBehaviour:
   fireRate: 3
   projectileSpeed: 20
   baseDamagePerShot: 5
+  powerDamageMultiplier: 2
   firePoint: {fileID: 0}
   projectileScale: {x: 0.25, y: 0.25, z: 0.25}
   projectileLifetime: 1
@@ -733,6 +734,7 @@ MonoBehaviour:
   minVisualScale: 0.5
   maxVisualScale: 3
   soldiersAtMaxScale: 50
+  visualScaleExponent: 0.75
 --- !u!114 &685497602
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -747,9 +749,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ChogZombies.Player.SoldierCrowdVisualizer_Pooling
   player: {fileID: 685497601}
   soldierPrefab: {fileID: 685497594}
-  poolSize: 33
-  radius: 0.2
-  heightOffset: 0.5
+  poolSize: 10
+  radius: 0.34
+  heightOffset: 0.1
+  soldierScaleMultiplier: 5
+  extraPowerCostStart: 2
+  extraPowerCostIncrease: 2
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0

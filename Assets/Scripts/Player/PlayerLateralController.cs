@@ -9,6 +9,8 @@ namespace ChogZombies.Player
         [SerializeField] float lateralSpeed = 5f;
         [SerializeField] float maxOffsetX = 5f;
 
+        public float MaxOffsetX => maxOffsetX;
+
         void Start()
         {
             var pos = transform.position;

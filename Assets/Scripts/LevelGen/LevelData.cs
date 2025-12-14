@@ -9,7 +9,8 @@ namespace ChogZombies.LevelGen
         Add,
         Subtract,
         Multiply2,
-        Multiply3
+        Multiply3,
+        Multiply
     }
 
     [Serializable]
