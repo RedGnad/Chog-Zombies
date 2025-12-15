@@ -24,6 +24,7 @@ namespace ChogZombies.Player
         [SerializeField] Transform firePoint;
         [SerializeField] Vector3 projectileScale = new Vector3(0.25f, 0.25f, 0.25f);
         [SerializeField] float projectileLifetime = 0.6f;
+        [SerializeField] GameObject projectilePrefab;
 
         [Header("Shooting Tuning")]
         [SerializeField] float maxShootDistance = 12f;
@@ -147,7 +148,7 @@ namespace ChogZombies.Player
                 : projectileLifetime;
             float life = Mathf.Max(0.05f, Mathf.Min(projectileLifetime, maxLifetimeByDistance));
 
-            Projectile.SpawnProjectile(origin, dir, projectileSpeed, damage, projectileScale, life);
+            Projectile.SpawnProjectile(origin, dir, projectileSpeed, damage, projectileScale, life, projectilePrefab);
         }
 
 
