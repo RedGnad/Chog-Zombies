@@ -73,6 +73,17 @@ namespace ChogZombies.Game
                 levelVisualizer.BuildWithParams(_levelIndexUsed, seed);
             }
             _boss = FindObjectOfType<BossBehaviour>();
+
+            if (player != null)
+            {
+                var lootController = player.GetComponent<PlayerLootController>();
+                if (lootController == null)
+                    lootController = player.gameObject.AddComponent<PlayerLootController>();
+
+                var meta = FindObjectOfType<ChogZombies.Loot.MetaProgressionController>();
+                if (meta != null)
+                    meta.ApplyOwnedToPlayer(lootController);
+            }
         }
 
         void Update()
@@ -160,7 +171,26 @@ namespace ChogZombies.Game
                 return;
             }
 
-            var item = bossLootTable.RollItem(rng);
+            var meta = FindObjectOfType<ChogZombies.Loot.MetaProgressionController>();
+
+            LootItemDefinition item = null;
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                var candidate = bossLootTable.RollItem(rng);
+                if (candidate == null)
+                {
+                    item = null;
+                    break;
+                }
+
+                if (meta == null || !meta.IsOwned(candidate))
+                {
+                    item = candidate;
+                    break;
+                }
+
+                item = candidate;
+            }
             if (item == null)
             {
                 Debug.Log("Boss loot: table empty or no valid item.");
@@ -173,7 +203,10 @@ namespace ChogZombies.Game
                 lootController = player.gameObject.AddComponent<PlayerLootController>();
             }
 
-            lootController.ApplyLoot(item);
+            if (meta != null)
+                meta.TryAddOwned(item);
+
+            lootController.TryApplyLoot(item);
 
             Debug.Log($"Boss loot: obtained {item.DisplayName} ({item.EffectType} +{item.EffectValue}).");
         }

@@ -65,7 +65,8 @@ namespace ChogZombies.UI
                 return;
 
             SetOpen(true);
-            shop.GenerateOffers();
+            if (!shop.OffersGenerated)
+                shop.GenerateOffers();
             RefreshAll();
         }
 

@@ -14,6 +14,8 @@ namespace ChogZombies.Game
 
         [SerializeField] bool uniqueOffers = true;
 
+        bool _offersGenerated;
+
         LootItemDefinition[] _offers;
 
         void Awake()
@@ -24,6 +26,9 @@ namespace ChogZombies.Game
 
         public void GenerateOffers()
         {
+            if (_offersGenerated)
+                return;
+
             if (shopLootTable == null)
                 return;
 
@@ -42,6 +47,7 @@ namespace ChogZombies.Game
             if (_offers == null || _offers.Length != slotsCount)
                 _offers = new LootItemDefinition[slotsCount];
 
+            var meta = FindObjectOfType<ChogZombies.Loot.MetaProgressionController>();
             var used = uniqueOffers ? new HashSet<LootItemDefinition>() : null;
 
             for (int i = 0; i < slotsCount; i++)
@@ -50,7 +56,22 @@ namespace ChogZombies.Game
 
                 if (!uniqueOffers)
                 {
-                    picked = shopLootTable.RollItem(rng);
+                    const int maxAttempts = 16;
+                    for (int attempt = 0; attempt < maxAttempts; attempt++)
+                    {
+                        var candidate = shopLootTable.RollItem(rng);
+                        if (candidate == null)
+                        {
+                            picked = null;
+                            break;
+                        }
+
+                        if (meta != null && meta.IsOwned(candidate))
+                            continue;
+
+                        picked = candidate;
+                        break;
+                    }
                 }
                 else
                 {
@@ -63,6 +84,9 @@ namespace ChogZombies.Game
                             picked = null;
                             break;
                         }
+
+                        if (meta != null && meta.IsOwned(candidate))
+                            continue;
 
                         if (!used.Contains(candidate))
                         {
@@ -79,6 +103,8 @@ namespace ChogZombies.Game
                 if (uniqueOffers && _offers[i] != null)
                     used.Add(_offers[i]);
             }
+
+            _offersGenerated = true;
         }
 
         public void BuySlot(int index)
@@ -91,6 +117,13 @@ namespace ChogZombies.Game
             var item = _offers[index];
             if (item == null)
                 return;
+
+            var meta = FindObjectOfType<ChogZombies.Loot.MetaProgressionController>();
+            if (meta != null && meta.IsOwned(item))
+            {
+                Debug.Log("Shop: item already owned.");
+                return;
+            }
 
             if (runGame == null)
                 runGame = FindObjectOfType<RunGameController>();
@@ -111,7 +144,10 @@ namespace ChogZombies.Game
             if (lootController == null)
                 lootController = player.gameObject.AddComponent<PlayerLootController>();
 
-            lootController.ApplyLoot(item);
+            if (meta != null)
+                meta.TryAddOwned(item);
+
+            lootController.TryApplyLoot(item);
             Debug.Log($"Shop: bought {item.DisplayName} for {slotCost} gold.");
 
             _offers[index] = null;
@@ -127,5 +163,7 @@ namespace ChogZombies.Game
         }
 
         public int SlotCost => slotCost;
+
+        public bool OffersGenerated => _offersGenerated;
     }
 }

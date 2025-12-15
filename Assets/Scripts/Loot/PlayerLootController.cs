@@ -20,13 +20,30 @@ namespace ChogZombies.Loot
 
         public void ApplyLoot(LootItemDefinition item)
         {
+            TryApplyLoot(item);
+        }
+
+        public bool TryApplyLoot(LootItemDefinition item)
+        {
             if (item == null)
-                return;
+                return false;
             if (player == null)
-                return;
+                return false;
+
+            string key = !string.IsNullOrEmpty(item.Id) ? item.Id : item.name;
+            for (int i = 0; i < _equippedItems.Count; i++)
+            {
+                var it = _equippedItems[i];
+                if (it == null)
+                    continue;
+                string k = !string.IsNullOrEmpty(it.Id) ? it.Id : it.name;
+                if (k == key)
+                    return false;
+            }
 
             _equippedItems.Add(item);
             ApplyEffectToPlayer(item);
+            return true;
         }
 
         void ApplyEffectToPlayer(LootItemDefinition item)
