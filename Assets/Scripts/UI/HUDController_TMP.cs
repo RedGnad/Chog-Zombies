@@ -12,6 +12,7 @@ namespace ChogZombies.UI
         [SerializeField] TMPro.TextMeshProUGUI soldiersText;
         [SerializeField] TMPro.TextMeshProUGUI bossHpText;
         [SerializeField] TMPro.TextMeshProUGUI levelText;
+        [SerializeField] TMPro.TextMeshProUGUI goldText;
         [SerializeField] TMPro.TextMeshProUGUI stateText;
         [SerializeField] TMPro.TextMeshProUGUI hintText;
 
@@ -80,6 +81,11 @@ namespace ChogZombies.UI
             {
                 int level = RunGameController.CurrentLevelIndex;
                 levelText.text = level > 0 ? $"Niveau: {level}" : "Niveau: -";
+            }
+
+            if (goldText != null)
+            {
+                goldText.text = $"Or: {RunGameController.CurrentGold}";
             }
 
             if (stateText != null)

@@ -41,9 +41,25 @@ namespace ChogZombies.Player
             else if (Mouse.current != null && Mouse.current.leftButton.isPressed)
             {
                 var mousePos = Mouse.current.position.ReadValue();
-                float t = Mathf.Clamp01(mousePos.x / Mathf.Max(1f, (float)Screen.width));
-                float target = (t - 0.5f) * 2f * maxOffsetX;
-                pos.x = Mathf.Lerp(pos.x, target, Time.deltaTime * lateralSpeed);
+                var cam = Camera.main;
+
+                if (cam != null)
+                {
+                    var ray = cam.ScreenPointToRay(mousePos);
+                    var plane = new Plane(Vector3.up, new Vector3(0f, pos.y, 0f));
+                    if (plane.Raycast(ray, out float enter))
+                    {
+                        var hit = ray.GetPoint(enter);
+                        float target = Mathf.Clamp(hit.x, -maxOffsetX, maxOffsetX);
+                        pos.x = Mathf.Lerp(pos.x, target, Time.deltaTime * lateralSpeed);
+                    }
+                }
+                else
+                {
+                    float t = Mathf.Clamp01(mousePos.x / Mathf.Max(1f, (float)Screen.width));
+                    float target = (t - 0.5f) * 2f * maxOffsetX;
+                    pos.x = Mathf.Lerp(pos.x, target, Time.deltaTime * lateralSpeed);
+                }
             }
 
             pos.x = Mathf.Clamp(pos.x, -maxOffsetX, maxOffsetX);

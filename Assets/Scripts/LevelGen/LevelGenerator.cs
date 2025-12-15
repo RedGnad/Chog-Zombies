@@ -20,7 +20,8 @@ namespace ChogZombies.LevelGen
                 levelIndex = 1;
             }
 
-            var rng = new System.Random(seed);
+            int rngSeed = seed ^ (levelIndex * 73856093) ^ unchecked((int)0x9e3779b9);
+            var rng = new System.Random(rngSeed);
             var level = new LevelData
             {
                 LevelIndex = levelIndex,
@@ -138,14 +139,14 @@ namespace ChogZombies.LevelGen
                 damageMultiplier = 1.2f;
             }
 
-            float enemyHpScale = 1.0f + 0.06f * (levelIndex - 1);
-            float enemyDamageScale = 1.0f + 0.04f * (levelIndex - 1);
+            float enemyHpScale = 1.0f + 0.04f * (levelIndex - 1);
+            float enemyDamageScale = 1.0f + 0.03f * (levelIndex - 1);
 
             float l = Mathf.Max(1, levelIndex);
             float k = (l - 1f);
-            float bossHpScale = 1.0f + 0.12f * k + 0.005f * k * k;
+            float bossHpScale = 1.0f + 0.09f * k + 0.004f * k * k;
 
-            float bossDamageScale = 1.0f + 0.06f * k;
+            float bossDamageScale = 1.0f + 0.045f * k;
 
             boss.Pattern = pattern;
             boss.Hp = Mathf.RoundToInt(BaseBossHp * bossHpScale * hpMultiplier);

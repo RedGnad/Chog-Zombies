@@ -13,6 +13,7 @@ namespace ChogZombies.UI
         [SerializeField] Text soldiersText;
         [SerializeField] Text bossHpText;
         [SerializeField] Text levelText;
+        [SerializeField] Text goldText;
         [SerializeField] Text stateText;
         [SerializeField] Text hintText;
 
@@ -81,6 +82,11 @@ namespace ChogZombies.UI
             {
                 int level = RunGameController.CurrentLevelIndex;
                 levelText.text = level > 0 ? $"Niveau: {level}" : "Niveau: -";
+            }
+
+            if (goldText != null)
+            {
+                goldText.text = $"Or: {RunGameController.CurrentGold}";
             }
 
             if (stateText != null)

@@ -15,6 +15,8 @@ namespace ChogZombies.Enemies
         [Header("Rewards")]
         [SerializeField] int powerRewardPerEnemy = 1;
         [SerializeField] int maxPowerReward = 1;
+        [SerializeField] float goldDropChance = 0.5f;
+        [SerializeField] int goldReward = 1;
 
         [Header("Movement")]
         [SerializeField] bool enableSideMovement = true;
@@ -31,6 +33,7 @@ namespace ChogZombies.Enemies
         float _effectiveAmplitude;
         float _effectiveSpeed;
         float _laneCenterX;
+        int _goldRngSeed;
 
         public int EnemyCount => enemyCount;
 
@@ -67,6 +70,15 @@ namespace ChogZombies.Enemies
 
             _basePosition = transform.position;
             _phase = Random.Range(0f, Mathf.PI * 2f);
+
+            int runSeed = 12345;
+            var run = FindObjectOfType<ChogZombies.Game.RunGameController>();
+            if (run != null)
+                runSeed = run.Seed;
+
+            int px = Mathf.RoundToInt(_basePosition.x * 100f);
+            int pz = Mathf.RoundToInt(_basePosition.z * 100f);
+            _goldRngSeed = runSeed ^ (l * 19349663) ^ (px * 83492791) ^ (pz * 73856093) ^ (enemyCount * 297121507);
         }
 
         void Update()
@@ -91,6 +103,17 @@ namespace ChogZombies.Enemies
                 if (reward > 0 && PlayerCombatController.Main != null)
                 {
                     PlayerCombatController.Main.AddPower(reward);
+                }
+
+                if (goldReward > 0 && goldDropChance > 0f)
+                {
+                    var rng = new System.Random(_goldRngSeed);
+                    if (rng.NextDouble() < goldDropChance)
+                    {
+                        var run = FindObjectOfType<ChogZombies.Game.RunGameController>();
+                        if (run != null)
+                            run.AddGold(goldReward);
+                    }
                 }
                 Destroy(gameObject);
             }

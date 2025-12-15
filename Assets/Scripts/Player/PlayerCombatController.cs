@@ -40,6 +40,10 @@ namespace ChogZombies.Player
 
         Vector3 _baseVisualScale;
 
+        float _damageMultiplierFromLoot = 1f;
+        float _fireRateMultiplierFromLoot = 1f;
+        float _damageTakenMultiplierFromLoot = 1f;
+
         public int SoldierCount { get; private set; }
 
         public bool IsAlive => SoldierCount > 0;
@@ -69,6 +73,30 @@ namespace ChogZombies.Player
             UpdateVisualSoldiers();
         }
 
+        public void ApplyDamageMultiplier(float factor)
+        {
+            if (factor <= 0f)
+                return;
+
+            _damageMultiplierFromLoot *= factor;
+        }
+
+        public void ApplyFireRateMultiplier(float factor)
+        {
+            if (factor <= 0f)
+                return;
+
+            _fireRateMultiplierFromLoot *= factor;
+        }
+
+        public void ApplyDamageTakenMultiplier(float factor)
+        {
+            if (factor <= 0f)
+                return;
+
+            _damageTakenMultiplierFromLoot *= factor;
+        }
+
         void OnDestroy()
         {
             if (Main == this)
@@ -87,11 +115,12 @@ namespace ChogZombies.Player
 
         void AutoShoot()
         {
-            if (fireRate <= 0f)
+            float effectiveFireRate = fireRate * _fireRateMultiplierFromLoot;
+            if (effectiveFireRate <= 0f)
                 return;
 
             _fireTimer += Time.deltaTime;
-            float interval = 1f / fireRate;
+            float interval = 1f / effectiveFireRate;
 
             if (_fireTimer >= interval)
             {
@@ -111,7 +140,7 @@ namespace ChogZombies.Player
 
             float clampedBase = Mathf.Min(baseDamagePerShot, 50f);
             float powerBonus = Mathf.Pow(Mathf.Max(1, SoldierCount), 0.4f) * powerDamageMultiplier;
-            float damage = clampedBase + powerBonus;
+            float damage = (clampedBase + powerBonus) * _damageMultiplierFromLoot;
 
             float maxLifetimeByDistance = projectileSpeed > 0.01f
                 ? (maxShootDistance / projectileSpeed)
@@ -171,8 +200,12 @@ namespace ChogZombies.Player
                 return;
 
             int before = SoldierCount;
-            SoldierCount = Mathf.Clamp(SoldierCount - loss, 0, maxSoldiers);
-            Debug.Log($"Player damage: -{loss} soldiers ({before} -> {SoldierCount})");
+
+            float scaledLoss = loss * _damageTakenMultiplierFromLoot;
+            int finalLoss = Mathf.Max(1, Mathf.RoundToInt(scaledLoss));
+
+            SoldierCount = Mathf.Clamp(SoldierCount - finalLoss, 0, maxSoldiers);
+            Debug.Log($"Player damage: -{finalLoss} soldiers ({before} -> {SoldierCount})");
 
             if (SoldierCount <= 0)
             {
