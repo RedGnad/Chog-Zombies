@@ -2,6 +2,7 @@ using UnityEngine;
 using ChogZombies.Combat;
 using ChogZombies.LevelGen;
 using ChogZombies.Enemies;
+using ChogZombies.Game;
 
 namespace ChogZombies.Player
 {
@@ -29,6 +30,10 @@ namespace ChogZombies.Player
         [Header("Shooting Tuning")]
         [SerializeField] float maxShootDistance = 12f;
         [SerializeField] float targetDetectionRadius = 1.0f;
+
+        [Header("Difficulty")]
+        [SerializeField] float enemyCollisionLossPerEnemy = 0.6f;
+        [SerializeField] float enemyCollisionLossPerLevel = 0.04f;
 
         [Header("Visual Crowd")]
         [SerializeField] Transform visualRoot;
@@ -244,10 +249,27 @@ namespace ChogZombies.Player
         {
             if (other.TryGetComponent<Enemies.EnemyGroupBehaviour>(out var enemyGroup))
             {
-                int loss = Mathf.Max(1, enemyGroup.EnemyCount / 2);
+                int lvl = Mathf.Max(1, RunGameController.CurrentLevelIndex);
+                float perEnemy = Mathf.Max(0f, enemyCollisionLossPerEnemy);
+                float perLevel = Mathf.Max(0f, enemyCollisionLossPerLevel);
+                float factor = perEnemy * (1f + perLevel * (lvl - 1));
+                int loss = Mathf.Max(1, Mathf.RoundToInt(enemyGroup.EnemyCount * factor));
                 TakeSoldierDamage(loss);
 
                 Destroy(enemyGroup.gameObject);
+                return;
+            }
+
+            if (other.TryGetComponent<Enemies.EnemyChaserGroupBehaviour>(out var chaserGroup))
+            {
+                int lvl = Mathf.Max(1, RunGameController.CurrentLevelIndex);
+                float perEnemy = Mathf.Max(0f, enemyCollisionLossPerEnemy);
+                float perLevel = Mathf.Max(0f, enemyCollisionLossPerLevel);
+                float factor = perEnemy * (1f + perLevel * (lvl - 1));
+                int loss = Mathf.Max(1, Mathf.RoundToInt(chaserGroup.EnemyCount * factor));
+                TakeSoldierDamage(loss);
+
+                Destroy(chaserGroup.gameObject);
                 return;
             }
         }

@@ -369,6 +369,15 @@ namespace ChogZombies.LevelGen
                 // Représentation simple des ennemis: un cube dont la taille X reflète enemyCount
                 int groupsInRow = GetEnemyGroupsInRow(level.LevelIndex, i, level.Segments.Count);
                 SpawnEnemyRow(groupsInRow, segment.EnemyCount, z + enemyOffsetZ);
+
+                // À partir du niveau 10, on ajoute en plus un groupe "chaser" qui suit le joueur sur Z,
+                // mais uniquement sur certains segments pour éviter d'en avoir trop.
+                if (level.LevelIndex >= 10 && (i % 3) == 1)
+                {
+                    int chaserCount = Mathf.Max(1, segment.EnemyCount / 2);
+                    float chaserZ = z + enemyOffsetZ * 1.5f;
+                    CreateChaserEnemyGroup(chaserCount, new Vector3(0f, enemySizeBase.y * 0.5f, chaserZ));
+                }
             }
 
             // Boss à la fin du couloir
@@ -529,6 +538,85 @@ namespace ChogZombies.LevelGen
                 enemy = go.AddComponent<Enemies.EnemyGroupBehaviour>();
             }
             enemy.Initialize(enemyCount, levelIndex);
+
+            var col = go.GetComponent<Collider>();
+            if (col == null)
+            {
+                col = go.AddComponent<BoxCollider>();
+            }
+            col.isTrigger = true;
+
+            var rb = go.GetComponent<Rigidbody>();
+            if (rb == null)
+            {
+                rb = go.AddComponent<Rigidbody>();
+            }
+            rb.useGravity = false;
+            rb.isKinematic = true;
+        }
+
+        void CreateChaserEnemyGroup(int enemyCount, Vector3 position)
+        {
+            GameObject go;
+            if (enemyVisualPrefab != null)
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.transform.SetParent(transform, false);
+            }
+            else if (enemyGroupPrefab != null)
+            {
+                go = Instantiate(enemyGroupPrefab, transform, false);
+            }
+            else
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.transform.SetParent(transform, false);
+            }
+
+            StripSceneControlComponents(go);
+            go.name = $"EnemiesChaser_{enemyCount}";
+            go.transform.localPosition = position;
+
+            // Même logique de largeur que les groupes normaux.
+            go.transform.localScale = Vector3.one;
+            float scaleX = Mathf.Clamp(1.2f + enemyCount * 0.22f, 1.3f, 4.2f);
+            go.transform.localScale = new Vector3(scaleX, enemySizeBase.y, enemySizeBase.z);
+
+            Color chaserColor = new Color(1.0f, 0.55f, 0.2f);
+            if (enemyVisualPrefab != null)
+            {
+                var renderer = go.GetComponent<Renderer>();
+                if (renderer != null)
+                    renderer.enabled = false;
+
+                var visualGo = AttachVisualChild(go, enemyVisualPrefab);
+                if (visualGo != null && tintEnemyPrefab)
+                    ApplyTintToHierarchy(visualGo, chaserColor);
+            }
+            else if (enemyGroupPrefab == null)
+            {
+                var renderer = go.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    if (enemyBaseMaterial != null)
+                        renderer.sharedMaterial = enemyBaseMaterial;
+                    else
+                        ApplyRuntimeColor(renderer, chaserColor);
+
+                    ApplyTint(renderer, chaserColor);
+                }
+            }
+            else if (tintEnemyPrefab)
+            {
+                ApplyTintToHierarchy(go, chaserColor);
+            }
+
+            var chaser = go.GetComponent<Enemies.EnemyChaserGroupBehaviour>();
+            if (chaser == null)
+            {
+                chaser = go.AddComponent<Enemies.EnemyChaserGroupBehaviour>();
+            }
+            chaser.Initialize(enemyCount, levelIndex);
 
             var col = go.GetComponent<Collider>();
             if (col == null)

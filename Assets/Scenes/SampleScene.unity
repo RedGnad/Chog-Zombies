@@ -1769,16 +1769,18 @@ MonoBehaviour:
   startingSoldiers: 1
   minSoldiers: 1
   maxSoldiers: 200
-  fireRate: 3
+  fireRate: 2
   projectileSpeed: 20
   baseDamagePerShot: 5
   powerDamageMultiplier: 2
   firePoint: {fileID: 0}
   projectileScale: {x: 0.25, y: 0.25, z: 0.25}
-  projectileLifetime: 1
+  projectileLifetime: 0.5
   projectilePrefab: {fileID: 0}
   maxShootDistance: 20
   targetDetectionRadius: 1
+  enemyCollisionLossPerEnemy: 0.6
+  enemyCollisionLossPerLevel: 0.04
   visualRoot: {fileID: 0}
   minVisualScale: 0.5
   maxVisualScale: 3

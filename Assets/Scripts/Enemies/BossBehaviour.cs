@@ -10,6 +10,7 @@ namespace ChogZombies.Enemies
         [SerializeField] int maxHp;
         [Header("Boss Fight")]
         [SerializeField] float attackInterval = 0.6f;
+        [SerializeField] float damageToSoldiersFactor = 0.65f;
 
         int _currentHp;
         BossData _data;
@@ -69,7 +70,8 @@ namespace ChogZombies.Enemies
             if (_attackTimer >= attackInterval)
             {
                 _attackTimer -= attackInterval;
-                int dmg = Mathf.Max(1, _data.Damage / 2);
+                float factor = Mathf.Max(0.01f, damageToSoldiersFactor);
+                int dmg = Mathf.Max(1, Mathf.RoundToInt(_data.Damage * factor));
                 _player.TakeSoldierDamage(dmg);
             }
         }

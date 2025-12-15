@@ -29,8 +29,8 @@ namespace ChogZombies.LevelGen
             };
 
             // Niveau un peu plus long : plus de segments au fur et à mesure
-            int segments = 6 + (levelIndex - 1) / 2;
-            segments = Mathf.Clamp(segments, 6, 14);
+            int segments = 6 + (levelIndex - 1) / 4;
+            segments = Mathf.Clamp(segments, 6, 10);
 
             for (int j = 0; j < segments; j++)
             {
@@ -87,11 +87,11 @@ namespace ChogZombies.LevelGen
                 int roll = rng.Next(0, 1000);
 
                 int pct;
-                if (roll < 300) pct = 110;
-                else if (roll < 600) pct = 120;
-                else if (roll < 800) pct = 130;
-                else if (roll < 960) pct = 150;
-                else pct = 200; // x2 très rare
+                if (roll < 450) pct = 110;
+                else if (roll < 750) pct = 120;
+                else if (roll < 900) pct = 130;
+                else if (roll < 980) pct = 140;
+                else pct = 150;
 
                 return new GateData
                 {
@@ -103,7 +103,7 @@ namespace ChogZombies.LevelGen
             return new GateData
             {
                 Type = GateType.Multiply,
-                Value = 150
+                Value = 120
             };
         }
 
