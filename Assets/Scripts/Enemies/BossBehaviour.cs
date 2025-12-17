@@ -9,8 +9,8 @@ namespace ChogZombies.Enemies
     {
         [SerializeField] int maxHp;
         [Header("Boss Fight")]
-        [SerializeField] float attackInterval = 0.6f;
-        [SerializeField] float damageToSoldiersFactor = 0.65f;
+        [SerializeField] float attackInterval = 0.5f;
+        [SerializeField] float damageToSoldiersFactor = 0.3f;
 
         int _currentHp;
         BossData _data;

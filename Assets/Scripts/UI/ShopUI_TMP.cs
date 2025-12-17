@@ -15,6 +15,9 @@ namespace ChogZombies.UI
         [SerializeField] TextMeshProUGUI slot2Text;
 
         bool _isOpen;
+        bool _warnedMissingOpenShopRoot;
+        bool _warnedMissingRunGame;
+        bool _warnedMissingShop;
 
         void Start()
         {
@@ -33,10 +36,30 @@ namespace ChogZombies.UI
             if (runGame == null)
                 runGame = FindObjectOfType<RunGameController>();
 
+            if (runGame == null && !_warnedMissingRunGame)
+            {
+                _warnedMissingRunGame = true;
+                Debug.LogWarning("[ShopUI_TMP] RunGameController not found in scene. Shop button cannot be shown.");
+            }
+
+            if (shop == null)
+                shop = FindObjectOfType<ShopController>();
+
+            if (shop == null && !_warnedMissingShop)
+            {
+                _warnedMissingShop = true;
+                Debug.LogWarning("[ShopUI_TMP] ShopController not found in scene. Shop cannot generate offers.");
+            }
+
             bool canShop = runGame != null && (runGame.State == RunGameController.RunState.Won || runGame.State == RunGameController.RunState.Lost);
 
             if (openShopButtonRoot != null)
                 openShopButtonRoot.SetActive(canShop);
+            else if (!_warnedMissingOpenShopRoot)
+            {
+                _warnedMissingOpenShopRoot = true;
+                Debug.LogWarning("[ShopUI_TMP] openShopButtonRoot is not assigned. The shop open button will never appear.");
+            }
 
             if (!canShop)
                 SetOpen(false);

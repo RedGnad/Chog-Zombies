@@ -2,10 +2,10 @@ using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using Reown.AppKit.Unity;
-using Reown.AppKit.Unity.Model;
-using Reown.Core.Common.Logging;
-using UnityLogger = Reown.Sign.Unity.UnityLogger;
+using global::Reown.AppKit.Unity;
+using global::Reown.AppKit.Unity.Model;
+using global::Reown.Core.Common.Logging;
+using UnityLogger = global::Reown.Sign.Unity.UnityLogger;
 
 namespace ChogZombies.UI
 {
@@ -22,13 +22,13 @@ namespace ChogZombies.UI
 
         [Header("Chains")]
         [SerializeField] bool useCustomChain;
-        [SerializeField] string chainReference = "10143";
-        [SerializeField] string chainName = "Monad Testnet";
+        [SerializeField] string chainReference = "143";
+        [SerializeField] string chainName = "Monad Mainnet";
         [SerializeField] string chainRpcUrl = "";
         [SerializeField] string chainExplorerName = "Explorer";
         [SerializeField] string chainExplorerUrl = "";
         [SerializeField] string chainImageUrl = "";
-        [SerializeField] bool chainIsTestnet = true;
+        [SerializeField] bool chainIsTestnet = false;
         [SerializeField] string nativeCurrencyName = "Monad";
         [SerializeField] string nativeCurrencySymbol = "MON";
         [SerializeField] int nativeCurrencyDecimals = 18;
@@ -189,10 +189,23 @@ namespace ChogZombies.UI
                     ? new RedirectData { Native = redirectNative ?? string.Empty, Universal = redirectUniversal ?? string.Empty }
                     : null;
 
+                string effectiveUrl = string.IsNullOrWhiteSpace(dappUrl) ? "https://example.com" : dappUrl;
+                if (Application.platform == RuntimePlatform.WebGLPlayer)
+                {
+                    var abs = Application.absoluteURL;
+                    if (!string.IsNullOrWhiteSpace(abs))
+                    {
+                        if (Uri.TryCreate(abs, UriKind.Absolute, out var uri))
+                            effectiveUrl = uri.GetLeftPart(UriPartial.Authority);
+                        else
+                            effectiveUrl = abs;
+                    }
+                }
+
                 var meta = new Metadata(
                     name: string.IsNullOrWhiteSpace(dappName) ? "Chog Zombies" : dappName,
                     description: string.IsNullOrWhiteSpace(dappDescription) ? "Chog Zombies" : dappDescription,
-                    url: string.IsNullOrWhiteSpace(dappUrl) ? "https://example.com" : dappUrl,
+                    url: effectiveUrl,
                     iconUrl: string.IsNullOrWhiteSpace(dappIconUrl) ? "https://example.com/logo.png" : dappIconUrl,
                     redirect: redirect
                 );
@@ -255,9 +268,17 @@ namespace ChogZombies.UI
                 {
                     if (string.IsNullOrWhiteSpace(chainReference))
                         throw new Exception("Missing chainReference");
-                    if (string.IsNullOrWhiteSpace(chainRpcUrl))
+
+                    string rpcUrl = chainRpcUrl;
+                    string explorerUrl = chainExplorerUrl;
+                    if (string.IsNullOrWhiteSpace(rpcUrl) && chainReference == "143")
+                        rpcUrl = "https://rpc.monad.xyz";
+                    if (string.IsNullOrWhiteSpace(explorerUrl) && chainReference == "143")
+                        explorerUrl = "https://monadexplorer.com";
+
+                    if (string.IsNullOrWhiteSpace(rpcUrl))
                         throw new Exception("Missing chainRpcUrl");
-                    if (string.IsNullOrWhiteSpace(chainExplorerUrl))
+                    if (string.IsNullOrWhiteSpace(explorerUrl))
                         throw new Exception("Missing chainExplorerUrl");
 
                     var chain = new Chain(
@@ -265,8 +286,8 @@ namespace ChogZombies.UI
                         chainReference,
                         string.IsNullOrWhiteSpace(chainName) ? chainReference : chainName,
                         new Currency(nativeCurrencyName, nativeCurrencySymbol, nativeCurrencyDecimals),
-                        new BlockExplorer(chainExplorerName, chainExplorerUrl),
-                        chainRpcUrl,
+                        new BlockExplorer(chainExplorerName, explorerUrl),
+                        rpcUrl,
                         chainIsTestnet,
                         chainImageUrl
                     );
@@ -426,15 +447,15 @@ namespace ChogZombies.UI
             return list.Count == 0 ? Array.Empty<SocialLogin>() : list.ToArray();
         }
 
-        Reown.AppKit.Unity.Model.Wallet[] BuildCustomWallets()
+        global::Reown.AppKit.Unity.Model.Wallet[] BuildCustomWallets()
         {
             return new[]
             {
-                new Reown.AppKit.Unity.Model.Wallet { Name = "Backpack", ImageUrl = "https://backpack.app/favicon.ico", MobileLink = "backpack://", WebappLink = "https://backpack.app/", Id = "2bd8c14e035c2d48f184aaa168559e86b0e3433228d3c4075900a221785019b0" },
-                new Reown.AppKit.Unity.Model.Wallet { Name = "MetaMask", ImageUrl = "https://metamask.io/images/favicon.ico", MobileLink = "metamask://wc", WebappLink = "https://metamask.io/", Id = "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96" },
-                new Reown.AppKit.Unity.Model.Wallet { Name = "Trust Wallet", ImageUrl = "https://trustwallet.com/assets/images/favicon.ico", MobileLink = "trust://wc", Id = "4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0" },
-                new Reown.AppKit.Unity.Model.Wallet { Name = "Phantom", ImageUrl = "https://phantom.app/img/phantom-logo.png", WebappLink = "https://phantom.app/ul/browse", Id = "a797aa35c0fadbfc1a53e7f675162ed5226968b44a19ee3d24385c64d1d3c393" },
-                new Reown.AppKit.Unity.Model.Wallet { Name = "Rabby", ImageUrl = "https://rabby.io/assets/images/logo.png", WebappLink = "https://rabby.io/", Id = "io.rabby" },
+                new global::Reown.AppKit.Unity.Model.Wallet { Name = "Backpack", ImageUrl = "https://backpack.app/favicon.ico", MobileLink = "backpack://", WebappLink = "https://backpack.app/", Id = "2bd8c14e035c2d48f184aaa168559e86b0e3433228d3c4075900a221785019b0" },
+                new global::Reown.AppKit.Unity.Model.Wallet { Name = "MetaMask", ImageUrl = "https://metamask.io/images/favicon.ico", MobileLink = "metamask://wc", WebappLink = "https://metamask.io/", Id = "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96" },
+                new global::Reown.AppKit.Unity.Model.Wallet { Name = "Trust Wallet", ImageUrl = "https://trustwallet.com/assets/images/favicon.ico", MobileLink = "trust://wc", Id = "4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0" },
+                new global::Reown.AppKit.Unity.Model.Wallet { Name = "Phantom", ImageUrl = "https://phantom.app/img/phantom-logo.png", WebappLink = "https://phantom.app/ul/browse", Id = "a797aa35c0fadbfc1a53e7f675162ed5226968b44a19ee3d24385c64d1d3c393" },
+                new global::Reown.AppKit.Unity.Model.Wallet { Name = "Rabby", ImageUrl = "https://rabby.io/assets/images/logo.png", WebappLink = "https://rabby.io/", Id = "io.rabby" },
             };
         }
     }

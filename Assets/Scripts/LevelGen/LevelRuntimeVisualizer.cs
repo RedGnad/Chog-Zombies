@@ -261,6 +261,10 @@ namespace ChogZombies.LevelGen
 
         void Start()
         {
+            var run = FindObjectOfType<ChogZombies.Game.RunGameController>();
+            if (run != null)
+                return;
+
             BuildWithParams(levelIndex, seed);
         }
 
@@ -274,7 +278,9 @@ namespace ChogZombies.LevelGen
 
             if (Application.isPlaying && isActiveAndEnabled)
             {
-                BuildWithParams(levelIndex, seed);
+                var run = FindObjectOfType<ChogZombies.Game.RunGameController>();
+                if (run == null)
+                    BuildWithParams(levelIndex, seed);
             }
         }
 
@@ -370,9 +376,9 @@ namespace ChogZombies.LevelGen
                 int groupsInRow = GetEnemyGroupsInRow(level.LevelIndex, i, level.Segments.Count);
                 SpawnEnemyRow(groupsInRow, segment.EnemyCount, z + enemyOffsetZ);
 
-                // À partir du niveau 10, on ajoute en plus un groupe "chaser" qui suit le joueur sur Z,
+                // À partir du niveau 11, on ajoute en plus un groupe "chaser" qui suit le joueur sur Z,
                 // mais uniquement sur certains segments pour éviter d'en avoir trop.
-                if (level.LevelIndex >= 10 && (i % 3) == 1)
+                if (level.LevelIndex >= 11 && (i % 3) == 1)
                 {
                     int chaserCount = Mathf.Max(1, segment.EnemyCount / 2);
                     float chaserZ = z + enemyOffsetZ * 1.5f;

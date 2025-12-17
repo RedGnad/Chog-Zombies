@@ -15,7 +15,7 @@ namespace ChogZombies.Player
         [Header("Soldiers")]
         [SerializeField] int startingSoldiers = 1;
         [SerializeField] int minSoldiers = 1;
-        [SerializeField] int maxSoldiers = 200;
+        [SerializeField] int maxSoldiers = 500;
 
         [Header("Shooting")]
         [SerializeField] float fireRate = 3f; // bullets per second

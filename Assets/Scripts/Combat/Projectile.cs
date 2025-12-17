@@ -163,6 +163,13 @@ namespace ChogZombies.Combat
                 return;
             }
 
+            if (other.TryGetComponent<EnemyChaserGroupBehaviour>(out var chaser))
+            {
+                chaser.TakeDamage(_damage);
+                Destroy(gameObject);
+                return;
+            }
+
             if (other.TryGetComponent<BossBehaviour>(out var boss))
             {
                 boss.TakeDamage(_damage);

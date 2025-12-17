@@ -864,13 +864,13 @@ MonoBehaviour:
   redirectNative: 
   redirectUniversal: 
   useCustomChain: 1
-  chainReference: 10143
-  chainName: Monad Testnet
-  chainRpcUrl: https://testnet-rpc.monad.xyz
+  chainReference: 143
+  chainName: Monad
+  chainRpcUrl: https://rpc.monad.xyz
   chainExplorerName: Explorer
-  chainExplorerUrl: https://testnet.monadexplorer.com
+  chainExplorerUrl: https://monadexplorer.com
   chainImageUrl: 
-  chainIsTestnet: 1
+  chainIsTestnet: 0
   nativeCurrencyName: Monad
   nativeCurrencySymbol: MON
   nativeCurrencyDecimals: 18
@@ -1376,6 +1376,12 @@ MonoBehaviour:
   player: {fileID: 685497601}
   startingLevelIndex: 1
   seed: 12345
+  useVrfForRunSeed: 1
+  useVrfForBossLoot: 1
+  vrfMinSettlementDelaySeconds: 5
+  vrfService: {fileID: 1601712373}
+  requireWalletConnectedToStart: 1
+  walletGateTimeoutSeconds: 300
   bossLootTable: {fileID: 11400000, guid: 7f85c4ca029ab4ca9a3eb3c670aeee9c, type: 2}
   bossLootDropChance: 0.4
   startingGold: 0
@@ -4095,6 +4101,57 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f3e4711987c741c79561b14675c5472, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ChogZombies.ReownIntegration.ReownCustomizationBootstrap
+--- !u!1 &1601712372
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1601712374}
+  - component: {fileID: 1601712373}
+  m_Layer: 0
+  m_Name: VRF
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1601712373
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1601712372}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8166df9cd1b8946c9a4cbc350e113f7b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ChogZombies.Reown.SwitchboardRandomnessService
+  switchboardContractAddress: 0xB7F03eee7B9F56347e32cC71DaD65B303D5a0E67
+  chainId: 143
+  crossbarUrl: https://crossbar.switchboard.xyz
+  defaultMinSettlementDelaySeconds: 5
+  settlementDelayBufferSeconds: 10
+  appKitInitTimeoutSeconds: 30
+  walletConnectTimeoutSeconds: 120
+--- !u!4 &1601712374
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1601712372}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -21.37435, y: 26.43774, z: -669.80304}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1621738079
 GameObject:
   m_ObjectHideFlags: 0
@@ -5081,3 +5138,4 @@ SceneRoots:
   - {fileID: 1630223676}
   - {fileID: 1326796074}
   - {fileID: 1571337622}
+  - {fileID: 1601712374}

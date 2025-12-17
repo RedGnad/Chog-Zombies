@@ -10,8 +10,17 @@ namespace ChogZombies.LevelGen
         const int BaseEnemyDamage = 5;
         const int BaseEnemyCount = 3;
 
-        const int BaseBossHp = 300;
+        const int BaseBossHp = 240;
         const int BaseBossDamage = 15;
+
+        const int AssumedStartingSoldiers = 1;
+        const int AssumedMaxSoldiers = 500;
+        const float AssumedPlayerFireRate = 3f;
+        const float AssumedPlayerBaseDamagePerShot = 5f;
+        const float AssumedPlayerPowerDamageMultiplier = 1.2f;
+
+        const float BossAttackIntervalDefault = 0.6f;
+        const float BossDamageToSoldiersFactorDefault = 0.35f;
 
         public static LevelData Generate(int levelIndex, int seed)
         {
@@ -40,6 +49,8 @@ namespace ChogZombies.LevelGen
                     RightGate = GenerateGate(rng, levelIndex)
                 };
 
+                EnforceNoDoubleSubtractBeforeLevel8(rng, levelIndex, segment);
+
                 int baseEnemyCount = BaseEnemyCount + (levelIndex - 1) / 3;
                 int delta = rng.Next(0, 4);
                 segment.EnemyCount = baseEnemyCount + delta;
@@ -47,9 +58,165 @@ namespace ChogZombies.LevelGen
                 level.Segments.Add(segment);
             }
 
+            // Garde-fou de viabilité : on s'assure qu'il existe au moins un chemin de portes
+            // qui donne suffisamment de soldats pour pouvoir battre le boss (modèle simplifié DPS vs dégâts).
+            int requiredForBoss = EstimateMinSoldiersToDefeatBossWorstCase(levelIndex);
+            int bestFinal = SimulateBestPathSoldiers(level.Segments, AssumedStartingSoldiers);
+
+            int safetyIterations = 0;
+            const int maxIterations = 24;
+
+            while (bestFinal < requiredForBoss && safetyIterations < maxIterations && level.Segments.Count > 0)
+            {
+                int segIndex = rng.Next(0, level.Segments.Count);
+                bool rerollLeft = rng.Next(0, 2) == 0;
+
+                if (rerollLeft)
+                {
+                    level.Segments[segIndex].LeftGate = GenerateGate(rng, levelIndex);
+                }
+                else
+                {
+                    level.Segments[segIndex].RightGate = GenerateGate(rng, levelIndex);
+                }
+
+                EnforceNoDoubleSubtractBeforeLevel8(rng, levelIndex, level.Segments[segIndex]);
+
+                bestFinal = SimulateBestPathSoldiers(level.Segments, AssumedStartingSoldiers);
+                safetyIterations++;
+            }
+
             GenerateBoss(levelIndex, rng, level.Boss);
 
             return level;
+        }
+
+        static void EnforceNoDoubleSubtractBeforeLevel8(System.Random rng, int levelIndex, SegmentData segment)
+        {
+            if (segment == null)
+                return;
+
+            if (levelIndex >= 8)
+                return;
+
+            if (segment.LeftGate == null || segment.RightGate == null)
+                return;
+
+            if (segment.LeftGate.Type != GateType.Subtract || segment.RightGate.Type != GateType.Subtract)
+                return;
+
+            // Avant le niveau 8, on évite les segments "double rouge" pour une montée en difficulté plus lisible.
+            bool rerollLeft = rng.Next(0, 2) == 0;
+            for (int i = 0; i < 6; i++)
+            {
+                if (segment.LeftGate.Type != GateType.Subtract || segment.RightGate.Type != GateType.Subtract)
+                    return;
+
+                if (rerollLeft)
+                    segment.LeftGate = GenerateGate(rng, levelIndex);
+                else
+                    segment.RightGate = GenerateGate(rng, levelIndex);
+
+                rerollLeft = !rerollLeft;
+            }
+        }
+
+        static int EstimateMinSoldiersToDefeatBossWorstCase(int levelIndex)
+        {
+            float l = Mathf.Max(1, levelIndex);
+            float k = (l - 1f);
+
+            float earlyRamp = Mathf.Clamp01(k / 8f);
+            float bossEarlyEaseHp = Mathf.Lerp(0.75f, 1.0f, earlyRamp);
+            float bossEarlyEaseDamage = Mathf.Lerp(0.85f, 1.0f, earlyRamp);
+
+            // Doit rester cohérent avec GenerateBoss (même tendance), mais on prend le pire multiplicateur.
+            float bossHpScale = 1.0f + 0.08f * k + 0.0035f * k * k;
+            float bossDamageScale = 1.0f + 0.045f * k;
+
+            float bossHpWorst = BaseBossHp * bossHpScale * bossEarlyEaseHp * 1.12f;
+            float bossDamageWorst = BaseBossDamage * bossDamageScale * bossEarlyEaseDamage * 1.10f;
+
+            int bossDamageInt = Mathf.RoundToInt(bossDamageWorst);
+            int soldierLossPerHit = Mathf.Max(1, Mathf.RoundToInt(bossDamageInt * BossDamageToSoldiersFactorDefault));
+            float soldierLossPerSecond = soldierLossPerHit / Mathf.Max(0.05f, BossAttackIntervalDefault);
+
+            for (int soldiers = 1; soldiers <= AssumedMaxSoldiers; soldiers++)
+            {
+                float powerBonus = Mathf.Pow(Mathf.Max(1, soldiers), 0.4f) * AssumedPlayerPowerDamageMultiplier;
+                float shotDamage = Mathf.Min(AssumedPlayerBaseDamagePerShot, 50f) + powerBonus;
+                float dps = AssumedPlayerFireRate * Mathf.Max(0.1f, shotDamage);
+
+                float timeToKill = bossHpWorst / dps;
+                float timeToDie = soldiers / Mathf.Max(0.1f, soldierLossPerSecond);
+
+                // marge pour éviter les cas "pile poil" impossibles en vrai.
+                if (timeToKill <= timeToDie * 0.9f)
+                    return soldiers;
+            }
+
+            return AssumedMaxSoldiers;
+        }
+
+        static int SimulateApplyGate(int soldiers, GateData gate)
+        {
+            if (gate == null)
+                return soldiers;
+
+            int result = soldiers;
+
+            switch (gate.Type)
+            {
+                case GateType.Add:
+                    result += gate.Value;
+                    break;
+                case GateType.Subtract:
+                    result -= gate.Value;
+                    break;
+                case GateType.Multiply2:
+                    result *= 2;
+                    break;
+                case GateType.Multiply3:
+                    result *= 3;
+                    break;
+                case GateType.Multiply:
+                    {
+                        float multiplier = Mathf.Max(0f, gate.Value / 100f);
+                        result = Mathf.RoundToInt(result * multiplier);
+                        break;
+                    }
+            }
+
+            return Mathf.Max(1, result);
+        }
+
+        static int SimulateBestPathSoldiers(System.Collections.Generic.List<SegmentData> segments, int initialSoldiers)
+        {
+            if (segments == null || segments.Count == 0)
+                return initialSoldiers;
+
+            int segmentCount = Mathf.Min(segments.Count, 16);
+            int pathCount = 1 << segmentCount;
+
+            int bestFinal = initialSoldiers;
+
+            for (int mask = 0; mask < pathCount; mask++)
+            {
+                int soldiers = initialSoldiers;
+
+                for (int i = 0; i < segmentCount; i++)
+                {
+                    var segment = segments[i];
+                    bool useRight = (mask & (1 << i)) != 0;
+                    var gate = useRight ? segment.RightGate : segment.LeftGate;
+                    soldiers = SimulateApplyGate(soldiers, gate);
+                }
+
+                if (soldiers > bestFinal)
+                    bestFinal = soldiers;
+            }
+
+            return bestFinal;
         }
 
         static GateData GenerateGate(System.Random rng, int levelIndex)
@@ -117,8 +284,8 @@ namespace ChogZombies.LevelGen
             if (t < 500)
             {
                 pattern = BossPatternType.A;
-                hpMultiplier = 0.9f;
-                damageMultiplier = 0.9f;
+                hpMultiplier = 0.95f;
+                damageMultiplier = 0.95f;
             }
             else if (t < 800)
             {
@@ -129,14 +296,14 @@ namespace ChogZombies.LevelGen
             else if (t < 950)
             {
                 pattern = BossPatternType.C;
-                hpMultiplier = 1.2f;
-                damageMultiplier = 1.1f;
+                hpMultiplier = 1.05f;
+                damageMultiplier = 1.05f;
             }
             else
             {
                 pattern = BossPatternType.D;
-                hpMultiplier = 1.4f;
-                damageMultiplier = 1.2f;
+                hpMultiplier = 1.12f;
+                damageMultiplier = 1.10f;
             }
 
             float enemyHpScale = 1.0f + 0.04f * (levelIndex - 1);
@@ -144,13 +311,17 @@ namespace ChogZombies.LevelGen
 
             float l = Mathf.Max(1, levelIndex);
             float k = (l - 1f);
-            float bossHpScale = 1.0f + 0.09f * k + 0.004f * k * k;
+
+            float earlyRamp = Mathf.Clamp01(k / 8f);
+            float bossEarlyEaseHp = Mathf.Lerp(0.75f, 1.0f, earlyRamp);
+            float bossEarlyEaseDamage = Mathf.Lerp(0.85f, 1.0f, earlyRamp);
+            float bossHpScale = 1.0f + 0.08f * k + 0.0035f * k * k;
 
             float bossDamageScale = 1.0f + 0.045f * k;
 
             boss.Pattern = pattern;
-            boss.Hp = Mathf.RoundToInt(BaseBossHp * bossHpScale * hpMultiplier);
-            boss.Damage = Mathf.RoundToInt(BaseBossDamage * bossDamageScale * damageMultiplier);
+            boss.Hp = Mathf.RoundToInt(BaseBossHp * bossHpScale * bossEarlyEaseHp * hpMultiplier);
+            boss.Damage = Mathf.RoundToInt(BaseBossDamage * bossDamageScale * bossEarlyEaseDamage * damageMultiplier);
         }
     }
 }
