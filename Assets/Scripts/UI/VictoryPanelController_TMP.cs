@@ -12,6 +12,8 @@ namespace ChogZombies.UI
         [SerializeField] GameObject victoryPanelRoot;
         [SerializeField] GameObject bossLootVrfButtonRoot;
         [SerializeField] GameObject rerollRunSeedButtonRoot;
+        [SerializeField] GameObject nextLevelButtonRoot;
+        [SerializeField] GameObject retryButtonRoot;
 
         bool _warnedMissingRunGame;
         bool _warnedMissingVictoryRoot;
@@ -46,12 +48,12 @@ namespace ChogZombies.UI
                 Debug.LogWarning("[VictoryPanelController_TMP] RunGameController not found in scene. Victory panel cannot be driven.");
             }
 
-            bool shouldShowVictory = runGame != null && runGame.State == RunGameController.RunState.Won;
+            bool shouldShowPanel = runGame != null && runGame.State != RunGameController.RunState.Playing;
 
             if (victoryPanelRoot != null)
             {
-                if (victoryPanelRoot.activeSelf != shouldShowVictory)
-                    victoryPanelRoot.SetActive(shouldShowVictory);
+                if (victoryPanelRoot.activeSelf != shouldShowPanel)
+                    victoryPanelRoot.SetActive(shouldShowPanel);
             }
 
             if (bossLootVrfButtonRoot != null)
@@ -66,6 +68,20 @@ namespace ChogZombies.UI
                 bool showRerollRunSeedButton = runGame != null && runGame.IsRerollRunSeedAvailable;
                 if (rerollRunSeedButtonRoot.activeSelf != showRerollRunSeedButton)
                     rerollRunSeedButtonRoot.SetActive(showRerollRunSeedButton);
+            }
+
+            if (nextLevelButtonRoot != null)
+            {
+                bool showNext = runGame != null && runGame.State == RunGameController.RunState.Won;
+                if (nextLevelButtonRoot.activeSelf != showNext)
+                    nextLevelButtonRoot.SetActive(showNext);
+            }
+
+            if (retryButtonRoot != null)
+            {
+                bool showRetry = runGame != null && runGame.State == RunGameController.RunState.Lost;
+                if (retryButtonRoot.activeSelf != showRetry)
+                    retryButtonRoot.SetActive(showRetry);
             }
         }
     }
