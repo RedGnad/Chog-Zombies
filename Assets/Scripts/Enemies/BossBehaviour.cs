@@ -2,6 +2,7 @@ using UnityEngine;
 using ChogZombies.LevelGen;
 using ChogZombies.Combat;
 using ChogZombies.Player;
+using ChogZombies.Game;
 
 namespace ChogZombies.Enemies
 {
@@ -16,6 +17,7 @@ namespace ChogZombies.Enemies
         BossData _data;
         bool _fightStarted;
         float _attackTimer;
+        float _effectiveAttackInterval;
         PlayerCombatController _player;
 
         public int CurrentHp => _currentHp;
@@ -26,6 +28,7 @@ namespace ChogZombies.Enemies
             _data = data;
             maxHp = data.Hp;
             _currentHp = maxHp;
+            _effectiveAttackInterval = Mathf.Max(0.05f, attackInterval);
         }
 
         public void TakeDamage(float damage)
@@ -67,9 +70,9 @@ namespace ChogZombies.Enemies
             }
 
             _attackTimer += Time.deltaTime;
-            if (_attackTimer >= attackInterval)
+            if (_attackTimer >= _effectiveAttackInterval)
             {
-                _attackTimer -= attackInterval;
+                _attackTimer -= _effectiveAttackInterval;
                 float factor = Mathf.Max(0.01f, damageToSoldiersFactor);
                 int dmg = Mathf.Max(1, Mathf.RoundToInt(_data.Damage * factor));
                 _player.TakeSoldierDamage(dmg);
@@ -94,6 +97,8 @@ namespace ChogZombies.Enemies
                 _fightStarted = true;
                 _player = player;
                 _attackTimer = 0f;
+                float speedMultiplier = GameDifficultySettings.GetBossAttackIntervalMultiplierOrDefault();
+                _effectiveAttackInterval = Mathf.Max(0.05f, attackInterval / speedMultiplier);
 
                 var runner = player.GetComponent<ChogZombies.Player.AutoRunner>();
                 if (runner != null)

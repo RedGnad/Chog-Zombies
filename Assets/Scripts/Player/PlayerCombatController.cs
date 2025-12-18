@@ -56,6 +56,14 @@ namespace ChogZombies.Player
 
         public bool IsMain => Main == this;
 
+        public void SetSoldierCount(int soldiers)
+        {
+            int before = SoldierCount;
+            SoldierCount = Mathf.Clamp(soldiers, minSoldiers, maxSoldiers);
+            Debug.Log($"Player soldiers override: {before} -> {SoldierCount}");
+            UpdateVisualSoldiers();
+        }
+
         void Awake()
         {
             if (Main == null)
@@ -145,7 +153,9 @@ namespace ChogZombies.Player
             Vector3 dir = transform.forward;
 
             float clampedBase = Mathf.Min(baseDamagePerShot, 50f);
-            float powerBonus = Mathf.Pow(Mathf.Max(1, SoldierCount), 0.4f) * powerDamageMultiplier;
+            float powerExp = GameDifficultySettings.GetPlayerPowerDamageExponentOrDefault();
+            float powerFactor = GameDifficultySettings.GetPlayerPowerDamageMultiplierFactorOrDefault();
+            float powerBonus = Mathf.Pow(Mathf.Max(1, SoldierCount), powerExp) * powerDamageMultiplier * powerFactor;
             float damage = (clampedBase + powerBonus) * _damageMultiplierFromLoot;
 
             float maxLifetimeByDistance = projectileSpeed > 0.01f

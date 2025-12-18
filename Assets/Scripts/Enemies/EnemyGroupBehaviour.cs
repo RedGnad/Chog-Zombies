@@ -1,6 +1,7 @@
 using UnityEngine;
 using ChogZombies.Combat;
 using ChogZombies.Player;
+using ChogZombies.Game;
 
 namespace ChogZombies.Enemies
 {
@@ -46,8 +47,10 @@ namespace ChogZombies.Enemies
         {
             enemyCount = count;
             int l = Mathf.Max(1, levelIndex);
-            float hpScale = 1f + Mathf.Max(0f, hpPerLevel) * (l - 1);
-            int effectiveHpPerEnemy = Mathf.Max(1, Mathf.RoundToInt(hpPerEnemy * hpScale));
+            float k = GameDifficultySettings.EvaluateEnemyLevelCurveK(l);
+            float hpScale = 1f + Mathf.Max(0f, hpPerLevel) * k;
+            float globalMultiplier = GameDifficultySettings.GetEnemyHpMultiplierOrDefault();
+            int effectiveHpPerEnemy = Mathf.Max(1, Mathf.RoundToInt(hpPerEnemy * hpScale * globalMultiplier));
             _currentHp = enemyCount * effectiveHpPerEnemy;
 
             // Centre de la "lane" : on garde le Z/Y de base et on fait balayer X.

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using ChogZombies.Game;
 
 namespace ChogZombies.LevelGen
 {
@@ -19,8 +20,8 @@ namespace ChogZombies.LevelGen
         const float AssumedPlayerBaseDamagePerShot = 5f;
         const float AssumedPlayerPowerDamageMultiplier = 1.2f;
 
-        const float BossAttackIntervalDefault = 0.6f;
-        const float BossDamageToSoldiersFactorDefault = 0.35f;
+        const float BossAttackIntervalDefault = 0.5f;
+        const float BossDamageToSoldiersFactorDefault = 0.30f;
 
         public static LevelData Generate(int levelIndex, int seed)
         {
@@ -125,25 +126,35 @@ namespace ChogZombies.LevelGen
         {
             float l = Mathf.Max(1, levelIndex);
             float k = (l - 1f);
+            float curveK = GameDifficultySettings.EvaluateBossLevelCurveK(levelIndex);
 
             float earlyRamp = Mathf.Clamp01(k / 8f);
             float bossEarlyEaseHp = Mathf.Lerp(0.75f, 1.0f, earlyRamp);
             float bossEarlyEaseDamage = Mathf.Lerp(0.85f, 1.0f, earlyRamp);
 
             // Doit rester cohérent avec GenerateBoss (même tendance), mais on prend le pire multiplicateur.
-            float bossHpScale = 1.0f + 0.08f * k + 0.0035f * k * k;
-            float bossDamageScale = 1.0f + 0.045f * k;
+            float bossHpScale = 1.0f + 0.08f * curveK + 0.0035f * curveK * curveK;
+            float bossDamageScale = 1.0f + 0.025f * curveK;
 
             float bossHpWorst = BaseBossHp * bossHpScale * bossEarlyEaseHp * 1.12f;
             float bossDamageWorst = BaseBossDamage * bossDamageScale * bossEarlyEaseDamage * 1.10f;
 
+            float bossHpGlobal = GameDifficultySettings.GetBossHpMultiplierOrDefault();
+            float bossDamageGlobal = GameDifficultySettings.GetBossDamageMultiplierOrDefault();
+            bossHpWorst *= bossHpGlobal;
+            bossDamageWorst *= bossDamageGlobal;
+
             int bossDamageInt = Mathf.RoundToInt(bossDamageWorst);
             int soldierLossPerHit = Mathf.Max(1, Mathf.RoundToInt(bossDamageInt * BossDamageToSoldiersFactorDefault));
-            float soldierLossPerSecond = soldierLossPerHit / Mathf.Max(0.05f, BossAttackIntervalDefault);
+            float intervalMult = GameDifficultySettings.GetBossAttackIntervalMultiplierOrDefault();
+            float effectiveInterval = Mathf.Max(0.05f, BossAttackIntervalDefault / intervalMult);
+            float soldierLossPerSecond = soldierLossPerHit / effectiveInterval;
 
             for (int soldiers = 1; soldiers <= AssumedMaxSoldiers; soldiers++)
             {
-                float powerBonus = Mathf.Pow(Mathf.Max(1, soldiers), 0.4f) * AssumedPlayerPowerDamageMultiplier;
+                float powerExp = GameDifficultySettings.GetPlayerPowerDamageExponentOrDefault();
+                float powerFactor = GameDifficultySettings.GetPlayerPowerDamageMultiplierFactorOrDefault();
+                float powerBonus = Mathf.Pow(Mathf.Max(1, soldiers), powerExp) * AssumedPlayerPowerDamageMultiplier * powerFactor;
                 float shotDamage = Mathf.Min(AssumedPlayerBaseDamagePerShot, 50f) + powerBonus;
                 float dps = AssumedPlayerFireRate * Mathf.Max(0.1f, shotDamage);
 
@@ -311,17 +322,20 @@ namespace ChogZombies.LevelGen
 
             float l = Mathf.Max(1, levelIndex);
             float k = (l - 1f);
+            float curveK = GameDifficultySettings.EvaluateBossLevelCurveK(levelIndex);
 
             float earlyRamp = Mathf.Clamp01(k / 8f);
             float bossEarlyEaseHp = Mathf.Lerp(0.75f, 1.0f, earlyRamp);
             float bossEarlyEaseDamage = Mathf.Lerp(0.85f, 1.0f, earlyRamp);
-            float bossHpScale = 1.0f + 0.08f * k + 0.0035f * k * k;
+            float bossHpScale = 1.0f + 0.08f * curveK + 0.0035f * curveK * curveK;
 
-            float bossDamageScale = 1.0f + 0.045f * k;
+            float bossDamageScale = 1.0f + 0.025f * curveK;
 
             boss.Pattern = pattern;
-            boss.Hp = Mathf.RoundToInt(BaseBossHp * bossHpScale * bossEarlyEaseHp * hpMultiplier);
-            boss.Damage = Mathf.RoundToInt(BaseBossDamage * bossDamageScale * bossEarlyEaseDamage * damageMultiplier);
+            float bossHpGlobal = GameDifficultySettings.GetBossHpMultiplierOrDefault();
+            float bossDamageGlobal = GameDifficultySettings.GetBossDamageMultiplierOrDefault();
+            boss.Hp = Mathf.Max(1, Mathf.RoundToInt(BaseBossHp * bossHpScale * bossEarlyEaseHp * hpMultiplier * bossHpGlobal));
+            boss.Damage = Mathf.Max(1, Mathf.RoundToInt(BaseBossDamage * bossDamageScale * bossEarlyEaseDamage * damageMultiplier * bossDamageGlobal));
         }
     }
 }

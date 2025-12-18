@@ -339,16 +339,13 @@ namespace ChogZombies.Reown
         {
             string url = crossbarUrl.TrimEnd('/') + "/randomness/evm";
 
-            // Implémentation conforme à l'exemple officiel:
-            // crossbar.resolveEVMRandomness({
-            //   chainId,
-            //   randomnessId,
-            //   timestamp: rollTimestamp,
-            //   minStalenessSeconds: minSettlementDelay,
-            //   oracle,
-            // });
+            // Important: utiliser le rollTimestamp on-chain.
+            // Si on bidouille le timestamp (ex: now-60s), Crossbar peut renvoyer un "encoded"
+            // qui ne matche pas la validation du contrat => revert "Wrong oracle".
+            long rollTsSeconds = (long)rollTimestamp;
+            Debug.Log($"[VRF] Crossbar using rollTimestamp (on-chain). rollTimestamp={rollTsSeconds}");
 
-            const int maxAttempts = 5;
+            const int maxAttempts = 6;
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -357,9 +354,9 @@ namespace ChogZombies.Reown
                 {
                     chain_id = chainId.ToString(CultureInfo.InvariantCulture),
                     randomness_id = randomnessId,
-                    timestamp = (long)rollTimestamp,
+                    timestamp = rollTsSeconds,
                     min_staleness_seconds = (long)minDelay,
-                    oracle = oracle,
+                    oracle = oracle.ToLowerInvariant(),
                 };
 
                 string json = JsonConvert.SerializeObject(body);
@@ -386,17 +383,22 @@ namespace ChogZombies.Reown
                 }
                 catch (Exception e)
                 {
-                    bool canRetry = attempt < (maxAttempts - 1)
-                                    && e.Message != null
-                                    && e.Message.IndexOf("TimestampTooFarInTheFuture", StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool isTimestampFuture = e.Message != null
+                                             && e.Message.IndexOf("TimestampTooFarInTheFuture", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                    bool canRetry = attempt < (maxAttempts - 1) && isTimestampFuture;
 
                     if (!canRetry)
                         throw;
 
-                    Debug.LogWarning($"[VRF] Crossbar attempt {attempt + 1} failed with TimestampTooFarInTheFuture. Retrying with same parameters. Error: {e.Message}");
+                    long nowUtcSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    long delta = rollTsSeconds - nowUtcSeconds;
+                    int waitSeconds = (int)Mathf.Clamp(15 * (attempt + 1), 15, 180);
 
-                    // Attente courte (compatible WebGL) avant de retenter.
-                    var retryAtUtc = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+                    Debug.LogWarning($"[VRF] Crossbar attempt {attempt + 1} failed with TimestampTooFarInTheFuture. Waiting {waitSeconds}s then retrying with same rollTimestamp={rollTsSeconds}. nowUtc={nowUtcSeconds} delta={delta}. Error: {e.Message}");
+
+                    // Attente (compatible WebGL) avant de retenter.
+                    var retryAtUtc = DateTime.UtcNow + TimeSpan.FromSeconds(waitSeconds);
                     while (DateTime.UtcNow < retryAtUtc)
                     {
                         ct.ThrowIfCancellationRequested();

@@ -53,6 +53,10 @@ namespace ChogZombies.Game
         static int s_currentLevelIndex = 0;
         static int s_currentGold = 0;
 
+        static int s_cachedRunBaseSeed = 0;
+        static string s_cachedRunSeedWalletAddress = null;
+        static SwitchboardRandomnessService.RandomnessResult s_cachedRunVrf = null;
+
         CancellationTokenSource _startupCts;
 
         RunState _state = RunState.Playing;
@@ -60,6 +64,115 @@ namespace ChogZombies.Game
         BossBehaviour _boss;
         bool _lootRolled;
         bool _levelBuilt;
+        bool _bossRewardGranted;
+
+        bool _bossLootVrfInFlight;
+        bool _runSeedRerollInFlight;
+        bool _sceneLoadInFlight;
+
+        Vector3 _playerSpawnPosition;
+        Quaternion _playerSpawnRotation;
+        bool _playerSpawnCaptured;
+
+        int DeriveLevelSeed(int runBaseSeed, int levelIndex)
+        {
+            unchecked
+            {
+                int x = runBaseSeed;
+                x ^= levelIndex * 73856093;
+                x ^= (x << 13);
+                x ^= (x >> 17);
+                x ^= (x << 5);
+                return x;
+            }
+        }
+
+        public bool IsBossLootVrfAvailable => _state == RunState.Won && useVrfForBossLoot && !_lootRolled && !_bossLootVrfInFlight;
+
+        public bool IsRerollRunSeedAvailable
+        {
+            get
+            {
+                if (!useVrfForRunSeed)
+                    return false;
+
+                if (_state != RunState.Won && _state != RunState.Lost)
+                    return false;
+
+                if (_runSeedRerollInFlight)
+                    return false;
+
+                try
+                {
+                    return AppKit.IsAccountConnected;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
+        public void OnBossLootVrfButton()
+        {
+            if (_state != RunState.Won)
+                return;
+
+            if (_bossLootVrfInFlight)
+                return;
+
+            TryRollBossLoot(true);
+        }
+
+        public async void OnRerollRunSeedButton()
+        {
+            if (!useVrfForRunSeed)
+                return;
+
+            if (_runSeedRerollInFlight)
+                return;
+
+            if (vrfService == null)
+                vrfService = FindObjectOfType<SwitchboardRandomnessService>();
+
+            if (vrfService == null)
+                return;
+
+            string currentWalletAddress = null;
+            try
+            {
+                if (AppKit.IsAccountConnected)
+                    currentWalletAddress = AppKit.Account.Address;
+            }
+            catch
+            {
+                currentWalletAddress = null;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentWalletAddress))
+                return;
+
+            try
+            {
+                _runSeedRerollInFlight = true;
+                var newVrf = await vrfService.RequestAndSettleRandomnessAsync(vrfMinSettlementDelaySeconds);
+                int newBaseSeed = vrfService.DeriveSeed(newVrf.Value);
+
+                s_cachedRunVrf = newVrf;
+                s_cachedRunBaseSeed = newBaseSeed;
+                s_cachedRunSeedWalletAddress = currentWalletAddress;
+
+                ReloadSameLevel();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[VRF] Reroll run seed failed. Error: {e.Message}");
+            }
+            finally
+            {
+                _runSeedRerollInFlight = false;
+            }
+        }
 
         public static int CurrentLevelIndex => s_currentLevelIndex;
         public static int CurrentGold => s_currentGold;
@@ -149,6 +262,39 @@ namespace ChogZombies.Game
 
             Debug.Log($"RunGameController: Start. levelIndex={_levelIndexUsed} requireWalletConnectedToStart={requireWalletConnectedToStart} useVrfForRunSeed={useVrfForRunSeed} useVrfForBossLoot={useVrfForBossLoot}");
 
+            if (player == null)
+            {
+                player = FindObjectOfType<Player.PlayerCombatController>();
+                if (player == null)
+                {
+                    Debug.LogWarning("RunGameController: aucun PlayerCombatController trouvé dans la scène.");
+                }
+            }
+
+            if (player != null)
+            {
+                var difficulty = GameDifficultySettings.Instance;
+                if (difficulty != null)
+                    difficulty.ApplyToPlayer(player);
+            }
+
+            AutoRunner autoRunner = null;
+            if (player != null)
+            {
+                if (!_playerSpawnCaptured)
+                {
+                    _playerSpawnPosition = player.transform.position;
+                    _playerSpawnRotation = player.transform.rotation;
+                    _playerSpawnCaptured = true;
+                }
+
+                autoRunner = player.GetComponent<AutoRunner>();
+                if (autoRunner != null)
+                {
+                    autoRunner.Enabled = false;
+                }
+            }
+
             if (requireWalletConnectedToStart)
             {
                 var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(Mathf.Max(1, walletGateTimeoutSeconds));
@@ -160,27 +306,9 @@ namespace ChogZombies.Game
                 catch (Exception e)
                 {
                     Debug.LogError($"RunGameController: startup gate failed. Aborting run. Error: {e.Message}");
-                    enabled = false;
+                    if (this != null)
+                        enabled = false;
                     return;
-                }
-            }
-
-            if (player == null)
-            {
-                player = FindObjectOfType<Player.PlayerCombatController>();
-                if (player == null)
-                {
-                    Debug.LogWarning("RunGameController: aucun PlayerCombatController trouvé dans la scène.");
-                }
-            }
-
-            AutoRunner autoRunner = null;
-            if (player != null)
-            {
-                autoRunner = player.GetComponent<AutoRunner>();
-                if (autoRunner != null)
-                {
-                    autoRunner.Enabled = false;
                 }
             }
 
@@ -192,22 +320,55 @@ namespace ChogZombies.Game
                 if (vrfService == null)
                 {
                     Debug.LogError("[VRF] Strict mode: SwitchboardRandomnessService not found. Aborting run.");
-                    enabled = false;
+                    if (this != null)
+                        enabled = false;
                     return;
                 }
 
+                string currentWalletAddress = null;
                 try
                 {
-                    Debug.Log("[VRF] Run seed: requesting randomness...");
-                    _runVrf = await vrfService.RequestAndSettleRandomnessAsync(vrfMinSettlementDelaySeconds);
-                    seed = vrfService.DeriveSeed(_runVrf.Value);
-                    Debug.Log($"[VRF] Run seed resolved. randomnessId={_runVrf.RandomnessId} value={_runVrf.Value} seed={seed} createTx={_runVrf.CreateTxHash} settleTx={_runVrf.SettleTxHash}");
+                    if (AppKit.IsAccountConnected)
+                        currentWalletAddress = AppKit.Account.Address;
                 }
-                catch (System.Exception e)
+                catch
                 {
-                    Debug.LogError($"[VRF] Strict mode: Run seed VRF failed. Aborting run. Error: {e.Message}");
-                    enabled = false;
-                    return;
+                    currentWalletAddress = null;
+                }
+
+                if (s_cachedRunVrf != null
+                    && !string.IsNullOrWhiteSpace(s_cachedRunSeedWalletAddress)
+                    && !string.IsNullOrWhiteSpace(currentWalletAddress)
+                    && string.Equals(s_cachedRunSeedWalletAddress, currentWalletAddress, StringComparison.OrdinalIgnoreCase))
+                {
+                    _runVrf = s_cachedRunVrf;
+                    seed = DeriveLevelSeed(s_cachedRunBaseSeed, _levelIndexUsed);
+                    Debug.Log($"[VRF] Run seed: using cached run seed. levelIndex={_levelIndexUsed} seed={seed} randomnessId={_runVrf.RandomnessId}");
+                }
+                else
+                {
+                    try
+                    {
+                        Debug.Log("[VRF] Run seed: requesting randomness...");
+                        _runVrf = await vrfService.RequestAndSettleRandomnessAsync(vrfMinSettlementDelaySeconds);
+                        int runBaseSeed = vrfService.DeriveSeed(_runVrf.Value);
+                        seed = DeriveLevelSeed(runBaseSeed, _levelIndexUsed);
+                        Debug.Log($"[VRF] Run seed resolved. randomnessId={_runVrf.RandomnessId} value={_runVrf.Value} seed={seed} createTx={_runVrf.CreateTxHash} settleTx={_runVrf.SettleTxHash}");
+
+                        if (!string.IsNullOrWhiteSpace(currentWalletAddress))
+                        {
+                            s_cachedRunVrf = _runVrf;
+                            s_cachedRunBaseSeed = runBaseSeed;
+                            s_cachedRunSeedWalletAddress = currentWalletAddress;
+                        }
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogError($"[VRF] Strict mode: Run seed VRF failed. Aborting run. Error: {e.Message}");
+                        if (this != null)
+                            enabled = false;
+                        return;
+                    }
                 }
             }
 
@@ -217,8 +378,25 @@ namespace ChogZombies.Game
             if (levelVisualizer == null)
             {
                 Debug.LogError("RunGameController: LevelRuntimeVisualizer not found in scene. Aborting run.");
-                enabled = false;
+                if (this != null)
+                    enabled = false;
                 return;
+            }
+
+            // Réinitialiser la position du joueur avant de construire le niveau (évite d’être déjà à la fin après la VRF)
+            if (player != null)
+            {
+                if (_playerSpawnCaptured)
+                {
+                    player.transform.position = _playerSpawnPosition;
+                    player.transform.rotation = _playerSpawnRotation;
+                }
+                var rb = player.GetComponent<Rigidbody>();
+                if (rb != null)
+                {
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
             }
 
             if (levelVisualizer != null)
@@ -231,6 +409,7 @@ namespace ChogZombies.Game
 
             if (autoRunner != null)
             {
+                await Task.Yield();
                 autoRunner.Enabled = true;
             }
             _boss = FindObjectOfType<BossBehaviour>();
@@ -278,7 +457,13 @@ namespace ChogZombies.Game
             {
                 _state = RunState.Won;
                 Debug.Log("Run state: WON");
-                TryRollBossLoot();
+                if (!_bossRewardGranted)
+                {
+                    _bossRewardGranted = true;
+                    AddGold(goldOnBossKill);
+                }
+
+                TryRollBossLoot(false);
             }
         }
 
@@ -315,31 +500,38 @@ namespace ChogZombies.Game
 
         void ReloadSameLevel()
         {
+            if (_sceneLoadInFlight)
+                return;
+            _sceneLoadInFlight = true;
             var scene = SceneManager.GetActiveScene();
             SceneManager.LoadScene(scene.buildIndex);
         }
 
         void NextLevel()
         {
+            if (_sceneLoadInFlight)
+                return;
+            _sceneLoadInFlight = true;
             s_currentLevelIndex = _levelIndexUsed + 1;
             var scene = SceneManager.GetActiveScene();
             SceneManager.LoadScene(scene.buildIndex);
         }
 
-        async void TryRollBossLoot()
+        async void TryRollBossLoot(bool forceVrf)
         {
             if (_lootRolled)
                 return;
 
-            _lootRolled = true;
-
             if (player == null)
                 return;
 
-            AddGold(goldOnBossKill);
-
             if (bossLootTable == null)
                 return;
+
+            if (useVrfForBossLoot && !forceVrf)
+                return;
+
+            _lootRolled = true;
 
             if (useVrfForBossLoot)
             {
@@ -354,6 +546,10 @@ namespace ChogZombies.Game
 
                 try
                 {
+                    if (_bossLootVrfInFlight)
+                        return;
+
+                    _bossLootVrfInFlight = true;
                     if (_bossLootVrf == null)
                     {
                         _bossLootVrf = await vrfService.RequestAndSettleRandomnessAsync(vrfMinSettlementDelaySeconds);
@@ -363,7 +559,12 @@ namespace ChogZombies.Game
                 catch (System.Exception e)
                 {
                     Debug.LogError($"[VRF] Strict mode: Boss loot VRF failed. Loot not rolled. Error: {e.Message}");
+                    _lootRolled = false;
                     return;
+                }
+                finally
+                {
+                    _bossLootVrfInFlight = false;
                 }
             }
 

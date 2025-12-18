@@ -27,6 +27,9 @@ namespace ChogZombies.UI
             if (runGame == null)
                 runGame = FindObjectOfType<RunGameController>();
 
+            if (openShopButtonRoot != null)
+                openShopButtonRoot.SetActive(false);
+
             SetOpen(false);
             RefreshAll();
         }

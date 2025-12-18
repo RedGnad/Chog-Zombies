@@ -289,7 +289,7 @@ namespace ChogZombies.UI
                         new BlockExplorer(chainExplorerName, explorerUrl),
                         rpcUrl,
                         chainIsTestnet,
-                        chainImageUrl
+                        string.IsNullOrWhiteSpace(chainImageUrl) ? null : chainImageUrl
                     );
 
                     config.supportedChains = new[] { chain };
