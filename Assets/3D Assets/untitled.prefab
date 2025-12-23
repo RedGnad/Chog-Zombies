@@ -55,5 +55,36 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 21af09cef0c8143d6947f3837caf08c6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6910475035365616205}
   m_SourcePrefab: {fileID: 100100000, guid: 21af09cef0c8143d6947f3837caf08c6, type: 3}
+--- !u!1 &5016959271882390063 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 21af09cef0c8143d6947f3837caf08c6, type: 3}
+  m_PrefabInstance: {fileID: 5286865535608014718}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &6910475035365616205
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5016959271882390063}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3ca3bdceda6a4625a7d0ad9e4c98a87, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ChogZombies.Effects.HitFeedbackController
+  enableFlash: 1
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  flashDuration: 0.1
+  enableScalePop: 1
+  scalePop: 1.15
+  scalePopDuration: 0.1
+  enableShake: 0
+  shakeIntensity: 0.1
+  shakeDuration: 0.1
+  targetRenderers: []
+  scaleTarget: {fileID: 0}

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using ChogZombies.Loot;
 using ChogZombies.Player;
+using ChogZombies.UI;
 
 namespace ChogZombies.Game
 {
@@ -12,11 +13,16 @@ namespace ChogZombies.Game
         [SerializeField] int slotCost = 3;
         [SerializeField] int slotsCount = 2;
 
+        [Header("Reroll")]
+        [SerializeField] int rerollCost = 30;
+
         [SerializeField] bool uniqueOffers = true;
 
         bool _offersGenerated;
 
         LootItemDefinition[] _offers;
+
+        int _rerollCount;
 
         void Awake()
         {
@@ -41,7 +47,7 @@ namespace ChogZombies.Game
 
             int levelIndex = RunGameController.CurrentLevelIndex;
             int baseSeed = runGame != null ? runGame.Seed : 12345;
-            int rngSeed = baseSeed ^ (levelIndex * 19349663) ^ 0x1234abcd;
+            int rngSeed = baseSeed ^ (levelIndex * 19349663) ^ 0x1234abcd ^ (_rerollCount * unchecked((int)0x9e3779b9));
             var rng = new System.Random(rngSeed);
 
             if (_offers == null || _offers.Length != slotsCount)
@@ -147,8 +153,13 @@ namespace ChogZombies.Game
             if (meta != null)
                 meta.TryAddOwned(item);
 
-            lootController.TryApplyLoot(item);
             Debug.Log($"Shop: bought {item.DisplayName} for {slotCost} gold.");
+
+            var lootRevealUI = LootRevealUI.Instance;
+            if (lootRevealUI == null)
+                lootRevealUI = FindObjectOfType<LootRevealUI>();
+            if (lootRevealUI != null)
+                lootRevealUI.Show(item);
 
             _offers[index] = null;
         }
@@ -164,6 +175,38 @@ namespace ChogZombies.Game
 
         public int SlotCost => slotCost;
 
+        public int RerollCost => rerollCost;
+
         public bool OffersGenerated => _offersGenerated;
+
+        // Handler pour le bouton UI de reroll (Unity n'affiche que les void dans OnClick)
+        public void HandleRerollButton()
+        {
+            TryReroll();
+        }
+
+        public bool TryReroll()
+        {
+            if (shopLootTable == null)
+                return false;
+
+            if (runGame == null)
+                runGame = FindObjectOfType<RunGameController>();
+            if (runGame == null)
+                return false;
+
+            if (!runGame.TrySpendGold(rerollCost))
+            {
+                Debug.Log("Shop: not enough gold to reroll.");
+                return false;
+            }
+
+            _offersGenerated = false;
+            _rerollCount++;
+            GenerateOffers();
+
+            Debug.Log($"Shop: rerolled offers (count={_rerollCount}).");
+            return true;
+        }
     }
 }

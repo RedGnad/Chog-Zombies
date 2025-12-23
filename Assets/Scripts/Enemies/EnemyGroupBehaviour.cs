@@ -2,6 +2,7 @@ using UnityEngine;
 using ChogZombies.Combat;
 using ChogZombies.Player;
 using ChogZombies.Game;
+using ChogZombies.Effects;
 
 namespace ChogZombies.Enemies
 {
@@ -99,6 +100,11 @@ namespace ChogZombies.Enemies
         {
             int dmg = Mathf.RoundToInt(damage);
             _currentHp -= dmg;
+
+            // Hit feedback
+            var hitFeedback = GetComponent<HitFeedbackController>();
+            if (hitFeedback != null)
+                hitFeedback.TriggerHitFeedback();
 
             if (_currentHp <= 0)
             {

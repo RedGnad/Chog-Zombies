@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: simple gun
   description: a simple gun
   icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  rarity: 0
   effectType: 0
   effectValue: 0.3
   dropWeight: 0.1

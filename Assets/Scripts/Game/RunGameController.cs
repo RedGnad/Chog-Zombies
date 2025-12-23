@@ -9,6 +9,7 @@ using ChogZombies.Player;
 using ChogZombies.Enemies;
 using ChogZombies.Loot;
 using ChogZombies.Reown;
+using ChogZombies.UI;
 using global::Reown.AppKit.Unity;
 
 namespace ChogZombies.Game
@@ -35,6 +36,7 @@ namespace ChogZombies.Game
         [SerializeField] bool useVrfForBossLoot;
         [SerializeField] int vrfMinSettlementDelaySeconds = 5;
         [SerializeField] SwitchboardRandomnessService vrfService;
+        [SerializeField] VRFLoadingUIBridge vrfLoadingUI;
         SwitchboardRandomnessService.RandomnessResult _runVrf;
         SwitchboardRandomnessService.RandomnessResult _bossLootVrf;
 
@@ -155,6 +157,10 @@ namespace ChogZombies.Game
             try
             {
                 _runSeedRerollInFlight = true;
+                if (vrfLoadingUI == null)
+                    vrfLoadingUI = FindObjectOfType<VRFLoadingUIBridge>();
+                vrfLoadingUI?.ShowLoading(VRFLoadingUI.VRFContext.RerollSeed);
+
                 var newVrf = await vrfService.RequestAndSettleRandomnessAsync(vrfMinSettlementDelaySeconds);
                 int newBaseSeed = vrfService.DeriveSeed(newVrf.Value);
 
@@ -167,6 +173,7 @@ namespace ChogZombies.Game
             catch (Exception e)
             {
                 Debug.LogError($"[VRF] Reroll run seed failed. Error: {e.Message}");
+                vrfLoadingUI?.ShowError(e.Message);
             }
             finally
             {
@@ -350,6 +357,10 @@ namespace ChogZombies.Game
                     try
                     {
                         Debug.Log("[VRF] Run seed: requesting randomness...");
+                        if (vrfLoadingUI == null)
+                            vrfLoadingUI = FindObjectOfType<VRFLoadingUIBridge>();
+                        vrfLoadingUI?.ShowLoading(VRFLoadingUI.VRFContext.RunSeed);
+
                         _runVrf = await vrfService.RequestAndSettleRandomnessAsync(vrfMinSettlementDelaySeconds);
                         int runBaseSeed = vrfService.DeriveSeed(_runVrf.Value);
                         seed = DeriveLevelSeed(runBaseSeed, _levelIndexUsed);
@@ -365,6 +376,7 @@ namespace ChogZombies.Game
                     catch (System.Exception e)
                     {
                         Debug.LogError($"[VRF] Strict mode: Run seed VRF failed. Aborting run. Error: {e.Message}");
+                        vrfLoadingUI?.ShowError(e.Message);
                         if (this != null)
                             enabled = false;
                         return;
@@ -414,16 +426,15 @@ namespace ChogZombies.Game
             }
             _boss = FindObjectOfType<BossBehaviour>();
 
-            if (player != null)
+            var lootController = EnsurePlayerLootController();
+            if (lootController != null)
             {
-                var lootController = player.GetComponent<PlayerLootController>();
-                if (lootController == null)
-                    lootController = player.gameObject.AddComponent<PlayerLootController>();
-
                 var meta = FindObjectOfType<ChogZombies.Loot.MetaProgressionController>();
                 if (meta != null)
-                    meta.ApplyOwnedToPlayer(lootController);
+                    meta.ApplyEquippedToPlayer(lootController);
             }
+
+            RegisterLootRevealCallbacks();
         }
 
         void Update()
@@ -520,18 +531,32 @@ namespace ChogZombies.Game
         async void TryRollBossLoot(bool forceVrf)
         {
             if (_lootRolled)
+            {
+                Debug.Log("[BossLoot] Already rolled, skipping.");
                 return;
+            }
 
             if (player == null)
+            {
+                Debug.LogWarning("[BossLoot] Early exit: player is null.");
                 return;
+            }
 
             if (bossLootTable == null)
+            {
+                Debug.LogWarning("[BossLoot] Early exit: bossLootTable is null.");
                 return;
+            }
 
             if (useVrfForBossLoot && !forceVrf)
+            {
+                Debug.Log("[BossLoot] VRF mode enabled and forceVrf=false. Waiting for explicit VRF roll.");
                 return;
+            }
 
             _lootRolled = true;
+
+            Debug.Log($"[BossLoot] Rolling boss loot. useVrfForBossLoot={useVrfForBossLoot}, dropChance={bossLootDropChance}");
 
             if (useVrfForBossLoot)
             {
@@ -552,6 +577,10 @@ namespace ChogZombies.Game
                     _bossLootVrfInFlight = true;
                     if (_bossLootVrf == null)
                     {
+                        if (vrfLoadingUI == null)
+                            vrfLoadingUI = FindObjectOfType<VRFLoadingUIBridge>();
+                        vrfLoadingUI?.ShowLoading(VRFLoadingUI.VRFContext.BossLoot);
+
                         _bossLootVrf = await vrfService.RequestAndSettleRandomnessAsync(vrfMinSettlementDelaySeconds);
                         Debug.Log($"[VRF] Boss loot randomness resolved. randomnessId={_bossLootVrf.RandomnessId} value={_bossLootVrf.Value} createTx={_bossLootVrf.CreateTxHash} settleTx={_bossLootVrf.SettleTxHash}");
                     }
@@ -559,6 +588,7 @@ namespace ChogZombies.Game
                 catch (System.Exception e)
                 {
                     Debug.LogError($"[VRF] Strict mode: Boss loot VRF failed. Loot not rolled. Error: {e.Message}");
+                    vrfLoadingUI?.ShowError(e.Message);
                     _lootRolled = false;
                     return;
                 }
@@ -619,9 +649,14 @@ namespace ChogZombies.Game
             if (meta != null)
                 meta.TryAddOwned(item);
 
-            lootController.TryApplyLoot(item);
+            Debug.Log($"Boss loot: obtained {item.DisplayName} ({item.Rarity} - {item.EffectType} +{item.EffectValue}).");
 
-            Debug.Log($"Boss loot: obtained {item.DisplayName} ({item.EffectType} +{item.EffectValue}).");
+            // Afficher le reveal animé
+            var lootRevealUI = LootRevealUI.Instance;
+            if (lootRevealUI == null)
+                lootRevealUI = FindObjectOfType<LootRevealUI>();
+            if (lootRevealUI != null)
+                lootRevealUI.Show(item);
         }
 
         public void AddGold(int amount)
@@ -644,6 +679,75 @@ namespace ChogZombies.Game
             s_currentGold -= cost;
             Debug.Log($"Gold: -{cost} (total {s_currentGold})");
             return true;
+        }
+
+        void RegisterLootRevealCallbacks()
+        {
+            var lootReveal = LootRevealUI.Instance ?? FindObjectOfType<LootRevealUI>();
+            if (lootReveal == null)
+            {
+                Debug.LogWarning("[RunGameController] LootRevealUI not found in scene. Equip button will do nothing.");
+                return;
+            }
+
+            lootReveal.OnEquipClicked -= HandleLootRevealEquipClicked;
+            lootReveal.OnEquipClicked += HandleLootRevealEquipClicked;
+        }
+
+        void HandleLootRevealEquipClicked(LootItemDefinition item)
+        {
+            if (item == null)
+                return;
+
+            var meta = FindObjectOfType<ChogZombies.Loot.MetaProgressionController>();
+            if (meta == null)
+            {
+                Debug.LogWarning("[RunGameController] MetaProgressionController not found. Cannot equip loot.");
+                return;
+            }
+
+            if (!meta.IsOwned(item))
+            {
+                Debug.LogWarning($"[RunGameController] Cannot equip '{item.DisplayName}' because it is not owned.");
+                return;
+            }
+
+            var lootController = EnsurePlayerLootController();
+            if (lootController == null)
+            {
+                Debug.LogWarning("[RunGameController] PlayerLootController not available. Cannot equip loot.");
+                return;
+            }
+
+            bool isEquipped = meta.IsEquipped(item);
+            if (isEquipped)
+            {
+                if (meta.SetEquipped(item, false))
+                {
+                    lootController.TryUnequip(item);
+                }
+            }
+            else
+            {
+                if (meta.SetEquipped(item, true))
+                {
+                    lootController.TryEquip(item);
+                }
+            }
+        }
+
+        PlayerLootController EnsurePlayerLootController()
+        {
+            if (player == null)
+                player = FindObjectOfType<Player.PlayerCombatController>();
+
+            if (player == null)
+                return null;
+
+            var lootController = player.GetComponent<PlayerLootController>();
+            if (lootController == null)
+                lootController = player.gameObject.AddComponent<PlayerLootController>();
+            return lootController;
         }
     }
 }

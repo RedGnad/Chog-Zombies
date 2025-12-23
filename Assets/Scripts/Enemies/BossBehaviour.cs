@@ -3,6 +3,7 @@ using ChogZombies.LevelGen;
 using ChogZombies.Combat;
 using ChogZombies.Player;
 using ChogZombies.Game;
+using ChogZombies.Effects;
 
 namespace ChogZombies.Enemies
 {
@@ -36,20 +37,15 @@ namespace ChogZombies.Enemies
             int dmg = Mathf.RoundToInt(damage);
             _currentHp -= dmg;
 
+            // Hit feedback + camera shake
+            var hitFeedback = GetComponent<HitFeedbackController>();
+            if (hitFeedback != null)
+                hitFeedback.TriggerHitFeedback();
+
             if (_currentHp <= 0)
             {
                 Debug.Log("Boss defeated!");
                 Destroy(gameObject);
-            }
-            else
-            {
-                // Feedback simple: on change légèrement la couleur
-                var renderer = GetComponent<Renderer>();
-                if (renderer != null)
-                {
-                    float ratio = Mathf.Clamp01((float)_currentHp / maxHp);
-                    renderer.material.color = Color.Lerp(Color.black, renderer.material.color, ratio);
-                }
             }
         }
 
@@ -76,6 +72,9 @@ namespace ChogZombies.Enemies
                 float factor = Mathf.Max(0.01f, damageToSoldiersFactor);
                 int dmg = Mathf.Max(1, Mathf.RoundToInt(_data.Damage * factor));
                 _player.TakeSoldierDamage(dmg);
+
+                // Léger camera shake uniquement quand le boss touche le joueur
+                CameraShakeController.TriggerShake(0.06f, 0.15f);
             }
         }
 

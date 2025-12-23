@@ -50,6 +50,16 @@ namespace ChogZombies.Reown
             public string Oracle;
         }
 
+        // Events pour l'UI de chargement VRF
+        public event Action OnWaitingWallet;
+        public event Action OnSigningTransaction;
+        public event Action<string> OnTransactionPending; // txHash
+        public event Action<float> OnWaitingSettlement; // durationSeconds
+        public event Action OnResolvingRandomness;
+        public event Action OnSettling;
+        public event Action<RandomnessResult> OnComplete;
+        public event Action<string> OnError;
+
         async Task EnsureExpectedChainAndContractAsync(CancellationToken ct)
         {
             string expectedChainId = $"eip155:{chainId}";
@@ -122,6 +132,7 @@ namespace ChogZombies.Reown
             ct.ThrowIfCancellationRequested();
             Debug.Log($"[VRF] RequestAndSettleRandomnessAsync start. minSettlementDelaySeconds={minSettlementDelaySeconds}");
 
+            OnWaitingWallet?.Invoke();
             await EnsureAppKitInitializedAsync(ct);
             await EnsureWalletConnectedAsync(ct);
             await EnsureExpectedChainAndContractAsync(ct);
@@ -134,6 +145,7 @@ namespace ChogZombies.Reown
 
             Debug.Log($"[VRF] createRandomness: randomnessId={randomnessId} minDelay={minSettlementDelaySeconds}s");
 
+            OnSigningTransaction?.Invoke();
             string createTxHash = await AppKit.Evm.WriteContractAsync(
                 switchboardContractAddress,
                 SwitchboardAbiJson,
@@ -143,6 +155,7 @@ namespace ChogZombies.Reown
             );
 
             Debug.Log($"[VRF] createRandomness tx sent. hash={createTxHash}");
+            OnTransactionPending?.Invoke(createTxHash);
 
             await AppKit.Evm.GetTransactionReceiptAsync(createTxHash, ct: ct);
             Debug.Log($"[VRF] createRandomness tx confirmed. hash={createTxHash}");
@@ -152,8 +165,11 @@ namespace ChogZombies.Reown
             var (rollTimestamp, minSettlementDelay, oracle) = await GetRandomnessRequestDataAsync(randomnessIdBytes32, ct);
             Debug.Log($"[VRF] getRandomness request data: rollTimestamp={rollTimestamp} minDelay={minSettlementDelay} oracle={oracle}");
 
+            float settlementWaitSeconds = (float)minSettlementDelay + settlementDelayBufferSeconds;
+            OnWaitingSettlement?.Invoke(settlementWaitSeconds);
             await WaitForSettlementDelayAsync(rollTimestamp, minSettlementDelay, ct);
 
+            OnResolvingRandomness?.Invoke();
             string encodedRandomness = await ResolveEncodedRandomnessFromCrossbarAsync(
                 randomnessId,
                 rollTimestamp,
@@ -175,6 +191,7 @@ namespace ChogZombies.Reown
             ct.ThrowIfCancellationRequested();
 
             Debug.Log("[VRF] Calling settleRandomness...");
+            OnSettling?.Invoke();
             string settleTxHash = await AppKit.Evm.WriteContractAsync(
                 switchboardContractAddress,
                 SwitchboardAbiJson,
@@ -215,7 +232,7 @@ namespace ChogZombies.Reown
             if (settledAt == BigInteger.Zero)
                 throw new Exception("Randomness failed to settle (settledAt == 0)");
 
-            return new RandomnessResult
+            var result = new RandomnessResult
             {
                 RandomnessId = randomnessId,
                 CreateTxHash = createTxHash,
@@ -225,6 +242,9 @@ namespace ChogZombies.Reown
                 MinSettlementDelay = minSettlementDelay,
                 Oracle = oracle,
             };
+
+            OnComplete?.Invoke(result);
+            return result;
         }
 
         async Task EnsureAppKitInitializedAsync(CancellationToken ct)
