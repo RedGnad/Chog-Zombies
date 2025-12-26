@@ -21,6 +21,8 @@ namespace ChogZombies.LevelGen
         [SerializeField] Vector3 gateSize = new Vector3(1f, 2f, 0.5f);
         [SerializeField] Vector3 enemySizeBase = new Vector3(1f, 1f, 1f);
         [SerializeField] Vector3 bossSize = new Vector3(3f, 3f, 3f);
+        [SerializeField] Vector3 bossVisualOffset = Vector3.zero;
+        [SerializeField] float bossVisualScale = 1f;
 
         [Header("Default Materials (no prefab)")]
         [SerializeField] Material gateBaseMaterial;
@@ -222,6 +224,42 @@ namespace ChogZombies.LevelGen
             v.transform.localScale = Vector3.one;
 
             FitVisualToUnitBox(v.transform);
+            return v;
+        }
+
+        GameObject AttachBossVisualChild(GameObject root, GameObject visualPrefab)
+        {
+            if (root == null || visualPrefab == null)
+                return null;
+
+            var v = Instantiate(visualPrefab, root.transform, false);
+            v.name = "Visual";
+
+            StripSceneControlComponents(v);
+            DisablePhysicsComponents(v);
+            
+            var t = v.transform;
+            var originalRotation = t.localRotation;
+
+            t.localPosition = Vector3.zero;
+            t.localRotation = Quaternion.identity;
+            t.localScale = Vector3.one;
+
+            FitVisualToUnitBox(t);
+
+            if (Mathf.Abs(bossVisualScale - 1f) > 0.0001f)
+            {
+                float s = Mathf.Max(0.01f, bossVisualScale);
+                t.localScale = t.localScale * s;
+            }
+
+            t.localRotation = originalRotation;
+
+            if (bossVisualOffset != Vector3.zero)
+            {
+                t.localPosition += bossVisualOffset;
+            }
+
             return v;
         }
 
@@ -668,7 +706,10 @@ namespace ChogZombies.LevelGen
             size.x = Mathf.Max(size.x, 10f);
             size.y = Mathf.Max(size.y, 3f);
             size.z = Mathf.Max(size.z, 3f);
-            go.transform.localScale = size;
+            if (bossVisualPrefab == null)
+            {
+                go.transform.localScale = size;
+            }
 
             var bossColor = GetBossColor(boss.Pattern);
             if (bossVisualPrefab != null)
@@ -677,7 +718,7 @@ namespace ChogZombies.LevelGen
                 if (renderer != null)
                     renderer.enabled = false;
 
-                var visualGo = AttachVisualChild(go, bossVisualPrefab);
+                var visualGo = AttachBossVisualChild(go, bossVisualPrefab);
                 if (visualGo != null && tintBossPrefab)
                     ApplyTintToHierarchy(visualGo, bossColor);
             }
@@ -710,6 +751,11 @@ namespace ChogZombies.LevelGen
             if (col == null)
             {
                 col = go.AddComponent<BoxCollider>();
+            }
+            var boxCol = col as BoxCollider;
+            if (boxCol != null && bossVisualPrefab != null)
+            {
+                boxCol.size = size;
             }
             col.isTrigger = true;
 
