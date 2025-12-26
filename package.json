@@ -1,0 +1,21 @@
+{
+  "name": "chog-zombies",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@pythnetwork/entropy-sdk-solidity": "^2.1.0"
+  },
+  "devDependencies": {
+    "hardhat": "^3.1.0",
+    "ethers": "^6.13.3",
+    "dotenv": "^16.4.5"
+  }
+}

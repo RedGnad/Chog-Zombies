@@ -25,6 +25,8 @@ namespace ChogZombies.Reown
 
         [SerializeField] bool logDebug;
 
+        public string ApiBaseUrl => apiBaseUrl;
+
         MetaProgressionController _meta;
 
         [Serializable]
