@@ -43,11 +43,11 @@ namespace ChogZombies.UI
 
             if (player == null)
             {
-                soldiersText.text = "Puissance: -";
+                soldiersText.text = "Power: -";
                 return;
             }
 
-            soldiersText.text = $"Puissance: {player.SoldierCount}";
+            soldiersText.text = $"Power: {player.SoldierCount}";
         }
 
         void UpdateBossSection()
@@ -80,12 +80,12 @@ namespace ChogZombies.UI
             if (levelText != null)
             {
                 int level = RunGameController.CurrentLevelIndex;
-                levelText.text = level > 0 ? $"Niveau: {level}" : "Niveau: -";
+                levelText.text = level > 0 ? $"Level: {level}" : "Level: -";
             }
 
             if (goldText != null)
             {
-                goldText.text = $"Or: {RunGameController.CurrentGold}";
+                goldText.text = $"Gold: {RunGameController.CurrentGold}";
             }
 
             if (stateText != null)
@@ -114,10 +114,10 @@ namespace ChogZombies.UI
                         hintText.text = "";
                         break;
                     case RunGameController.RunState.Won:
-                        hintText.text = "Victoire ! Appuie sur N pour niveau suivant.";
+                        hintText.text = "Victory! Press N for next level.";
                         break;
                     case RunGameController.RunState.Lost:
-                        hintText.text = "Défaite. Appuie sur R pour rejouer.";
+                        hintText.text = "Defeat. Press R to retry.";
                         break;
                 }
             }

@@ -333,9 +333,12 @@ namespace ChogZombies.Loot
         {
             if (item == null)
                 return string.Empty;
-            if (!string.IsNullOrEmpty(item.Id))
-                return item.Id;
-            return item.name;
+
+            // Identifiant de base (asset ou champ Id explicite)
+            string baseId = !string.IsNullOrEmpty(item.Id) ? item.Id : item.name;
+
+            // Clé = identifiant + rareté pour distinguer les tiers d'une même famille
+            return baseId + "_" + item.Rarity.ToString();
         }
     }
 }

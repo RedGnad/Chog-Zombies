@@ -238,7 +238,7 @@ namespace ChogZombies.UI
         public void SetError(string errorMessage)
         {
             _lastError = errorMessage;
-            SetState(VRFState.Error, $"Erreur: {TruncateMessage(errorMessage, 80)}");
+            SetState(VRFState.Error, $"Error: {TruncateMessage(errorMessage, 80)}");
         }
 
         public void SetComplete(string message = null)
@@ -314,10 +314,10 @@ namespace ChogZombies.UI
         {
             return context switch
             {
-                VRFContext.RunSeed => "Génération du Seed",
-                VRFContext.BossLoot => "Loot VRF",
-                VRFContext.RerollSeed => "Nouveau Seed",
-                _ => "VRF en cours..."
+                VRFContext.RunSeed => "Generating seed",
+                VRFContext.BossLoot => "VRF loot",
+                VRFContext.RerollSeed => "New seed",
+                _ => "VRF in progress..."
             };
         }
 
@@ -325,14 +325,14 @@ namespace ChogZombies.UI
         {
             return state switch
             {
-                VRFState.WaitingWallet => "En attente du wallet...",
-                VRFState.SigningTransaction => "Signez la transaction...",
-                VRFState.TransactionPending => "Transaction en cours...",
-                VRFState.WaitingSettlement => "Attente VRF settlement...",
-                VRFState.ResolvingRandomness => "Résolution randomness...",
-                VRFState.Settling => "Finalisation...",
-                VRFState.Complete => "Terminé !",
-                VRFState.Error => "Erreur",
+                VRFState.WaitingWallet => "Waiting for wallet...",
+                VRFState.SigningTransaction => "Sign the transaction...",
+                VRFState.TransactionPending => "Transaction pending...",
+                VRFState.WaitingSettlement => "Waiting for VRF settlement...",
+                VRFState.ResolvingRandomness => "Resolving randomness...",
+                VRFState.Settling => "Finalizing...",
+                VRFState.Complete => "Done!",
+                VRFState.Error => "Error",
                 _ => ""
             };
         }
@@ -341,10 +341,10 @@ namespace ChogZombies.UI
         {
             return context switch
             {
-                VRFContext.RunSeed => "Seed généré !",
-                VRFContext.BossLoot => "Loot obtenu !",
-                VRFContext.RerollSeed => "Nouveau seed !",
-                _ => "Terminé !"
+                VRFContext.RunSeed => "Seed generated!",
+                VRFContext.BossLoot => "Loot obtained!",
+                VRFContext.RerollSeed => "New seed selected!",
+                _ => "Done!"
             };
         }
 

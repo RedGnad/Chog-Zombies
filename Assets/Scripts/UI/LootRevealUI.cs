@@ -314,11 +314,11 @@ namespace ChogZombies.UI
         {
             return rarity switch
             {
-                LootRarity.Common => "COMMUN",
+                LootRarity.Common => "COMMON",
                 LootRarity.Rare => "RARE",
-                LootRarity.Epic => "ÉPIQUE",
-                LootRarity.Legendary => "LÉGENDAIRE",
-                _ => "COMMUN"
+                LootRarity.Epic => "EPIC",
+                LootRarity.Legendary => "LEGENDARY",
+                _ => "COMMON"
             };
         }
 

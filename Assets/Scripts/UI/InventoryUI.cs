@@ -276,6 +276,17 @@ namespace ChogZombies.UI
                             loot.TryUnequip(item);
 
                         isEquipped = targetEquipped;
+
+                        // Pousser le nouvel état d'équipement vers le backend (owned/equipped)
+                        try
+                        {
+                            var lootBackend = FindObjectOfType<ChogZombies.Reown.LootBackendSync>();
+                            lootBackend?.PushForCurrentWallet();
+                        }
+                        catch (System.Exception e)
+                        {
+                            Debug.LogWarning($"[InventoryUI] Failed to push loot state to backend: {e.Message}");
+                        }
                     }
                 }
             }
@@ -314,7 +325,7 @@ namespace ChogZombies.UI
 
             if (detailDescription != null)
             {
-                detailDescription.text = isOwned ? item.Description : "Item non découvert";
+                detailDescription.text = isOwned ? item.Description : "Item not discovered";
             }
 
             if (detailEffect != null)
@@ -336,13 +347,13 @@ namespace ChogZombies.UI
                 if (isOwned)
                 {
                     detailEquippedStatus.gameObject.SetActive(true);
-                    detailEquippedStatus.text = isEquipped ? "ÉQUIPÉ" : "Disponible";
+                    detailEquippedStatus.text = isEquipped ? "EQUIPPED" : "Available";
                     detailEquippedStatus.color = isEquipped ? Color.green : Color.white;
                 }
                 else
                 {
                     detailEquippedStatus.gameObject.SetActive(true);
-                    detailEquippedStatus.text = "Non obtenu";
+                    detailEquippedStatus.text = "Not owned";
                     detailEquippedStatus.color = lockedColor;
                 }
             }
@@ -356,7 +367,7 @@ namespace ChogZombies.UI
             if (detailIcon != null)
                 detailIcon.sprite = null;
             if (detailName != null)
-                detailName.text = "Sélectionne un objet";
+                detailName.text = "Select an item";
             if (detailRarity != null)
                 detailRarity.text = string.Empty;
             if (detailDescription != null)
@@ -387,9 +398,9 @@ namespace ChogZombies.UI
 
             return item.EffectType switch
             {
-                LootEffectType.DamageMultiplier => $"+{percent:F0}% Dégâts",
-                LootEffectType.FireRateMultiplier => $"+{percent:F0}% Cadence de tir",
-                LootEffectType.ArmorDamageReduction => $"-{percent:F0}% Dégâts reçus",
+                LootEffectType.DamageMultiplier => $"+{percent:F0}% Damage",
+                LootEffectType.FireRateMultiplier => $"+{percent:F0}% Fire rate",
+                LootEffectType.ArmorDamageReduction => $"-{percent:F0}% Damage taken",
                 _ => $"+{percent:F0}%"
             };
         }
@@ -410,11 +421,11 @@ namespace ChogZombies.UI
         {
             return rarity switch
             {
-                LootRarity.Common => "COMMUN",
+                LootRarity.Common => "COMMON",
                 LootRarity.Rare => "RARE",
-                LootRarity.Epic => "ÉPIQUE",
-                LootRarity.Legendary => "LÉGENDAIRE",
-                _ => "COMMUN"
+                LootRarity.Epic => "EPIC",
+                LootRarity.Legendary => "LEGENDARY",
+                _ => "COMMON"
             };
         }
 

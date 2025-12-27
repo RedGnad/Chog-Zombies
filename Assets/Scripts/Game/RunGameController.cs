@@ -58,6 +58,7 @@ namespace ChogZombies.Game
         [Header("Economy")]
         [SerializeField] int startingGold = 0;
         [SerializeField] int goldOnBossKill = 3;
+        [SerializeField] int rerollRunSeedCost = 10;
 
         static int s_currentLevelIndex = 0;
         static int s_currentGold = 0;
@@ -247,8 +248,32 @@ namespace ChogZombies.Game
                         vrfLoadingUI?.ShowError(lastError.Message);
                     return;
                 }
+                // Coût en or pour le reroll
+                if (rerollRunSeedCost > 0 && s_currentGold < rerollRunSeedCost)
+                {
+                    Debug.Log("[Reroll] Not enough gold to reroll run seed.");
+                    return;
+                }
 
-                PushRunStateToBackendIfPossible();
+                if (rerollRunSeedCost > 0)
+                {
+                    // Met à jour s_currentGold et pousse l'état (gold) via le helper existant
+                    if (!TrySpendGold(rerollRunSeedCost))
+                    {
+                        Debug.Log("[Reroll] TrySpendGold failed unexpectedly.");
+                        return;
+                    }
+                }
+
+                // Persister explicitement la nouvelle baseSeed + l'or mis à jour avant de recharger la scène.
+                try
+                {
+                    await PushUserStateToBackendAsync(currentWalletAddress, s_cachedRunBaseSeed, s_currentGold, CancellationToken.None);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[VRF][Reroll] Failed to push rerolled run state to backend: {e.Message}");
+                }
 
                 // Une nouvelle baseSeed VRF a été choisie, on recharge le même niveau avec cette seed
                 ReloadSameLevel();
@@ -1121,6 +1146,16 @@ namespace ChogZombies.Game
                 if (meta.SetEquipped(item, false))
                 {
                     lootController.TryUnequip(item);
+                    // Pousser le nouvel état d'équipement vers le backend
+                    try
+                    {
+                        var lootBackend = FindObjectOfType<LootBackendSync>();
+                        lootBackend?.PushForCurrentWallet();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"[RunGameController] Failed to push loot state to backend after unequip: {e.Message}");
+                    }
                 }
             }
             else
@@ -1128,6 +1163,16 @@ namespace ChogZombies.Game
                 if (meta.SetEquipped(item, true))
                 {
                     lootController.TryEquip(item);
+                    // Pousser le nouvel état d'équipement vers le backend
+                    try
+                    {
+                        var lootBackend = FindObjectOfType<LootBackendSync>();
+                        lootBackend?.PushForCurrentWallet();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"[RunGameController] Failed to push loot state to backend after equip: {e.Message}");
+                    }
                 }
             }
         }

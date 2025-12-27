@@ -7794,6 +7794,7 @@ MonoBehaviour:
   bossLootDropChance: 1
   startingGold: 0
   goldOnBossKill: 5
+  rerollRunSeedCost: 10
 --- !u!4 &481035566
 Transform:
   m_ObjectHideFlags: 0
@@ -9526,7 +9527,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 170, y: 575}
+  m_AnchoredPosition: {x: 170, y: 487}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &807313859
@@ -10198,7 +10199,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -172, y: 575}
+  m_AnchoredPosition: {x: -172, y: 483}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &898021524
@@ -12510,7 +12511,7 @@ RectTransform:
   m_Father: {fileID: 1797095126}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 20, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -12860,7 +12861,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1450846551
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12977,7 +12978,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -391, y: 613}
+  m_AnchoredPosition: {x: -391, y: 639}
   m_SizeDelta: {x: 60, y: -70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!4 &1472956065
@@ -13387,7 +13388,7 @@ RectTransform:
   m_Father: {fileID: 1289348600}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 10, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -14360,6 +14361,7 @@ MonoBehaviour:
   enemyOffsetZ: 3
   enemyHeight: 1
   enemyLaneOffsetX: 2
+  segmentEnvironmentYOffset: -1.74
   gateSize: {x: 4.5, y: 1.5, z: 0.5}
   enemySizeBase: {x: 1, y: 1, z: 1}
   bossSize: {x: 3, y: 3, z: 3}
@@ -14371,7 +14373,7 @@ MonoBehaviour:
   gatePrefab: {fileID: 0}
   enemyGroupPrefab: {fileID: 0}
   bossPrefab: {fileID: 0}
-  segmentEnvironmentPrefab: {fileID: 0}
+  segmentEnvironmentPrefab: {fileID: 233154020772284942}
   gateVisualPrefab: {fileID: 0}
   enemyVisualPrefab: {fileID: 5016959271882390063, guid: a35fafece0ca24116a6a5eb4da61fd58, type: 3}
   bossVisualPrefab: {fileID: 6679157768537416439, guid: 5daaa657920444d0397a0a8a9b27fb4e, type: 3}
@@ -20378,7 +20380,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2056439268
 RectTransform:
   m_ObjectHideFlags: 0
@@ -20698,6 +20700,11 @@ MonoBehaviour:
   ownedText: {fileID: 165549700}
   equippedText: {fileID: 198371056}
   lastAcquiredText: {fileID: 253976990}
+--- !u!1 &233154020772284942 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6052562643221414875, guid: d70c78475c6364c1ea7f9f77a7ffeace, type: 3}
+  m_PrefabInstance: {fileID: 2930277888618821110}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &2930277888618821110
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -20707,16 +20714,24 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 131720864174822244, guid: d70c78475c6364c1ea7f9f77a7ffeace, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 12.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 131720864174822244, guid: d70c78475c6364c1ea7f9f77a7ffeace, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 33.34
+      objectReference: {fileID: 0}
+    - target: {fileID: 131720864174822244, guid: d70c78475c6364c1ea7f9f77a7ffeace, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 105.5666
+      value: -145
       objectReference: {fileID: 0}
     - target: {fileID: 131720864174822244, guid: d70c78475c6364c1ea7f9f77a7ffeace, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 205
       objectReference: {fileID: 0}
     - target: {fileID: 131720864174822244, guid: d70c78475c6364c1ea7f9f77a7ffeace, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -202
+      value: -2.3
       objectReference: {fileID: 0}
     - target: {fileID: 131720864174822244, guid: d70c78475c6364c1ea7f9f77a7ffeace, type: 3}
       propertyPath: m_LocalRotation.w
@@ -20744,6 +20759,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 131720864174822244, guid: d70c78475c6364c1ea7f9f77a7ffeace, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 131720864174822244, guid: d70c78475c6364c1ea7f9f77a7ffeace, type: 3}
+      propertyPath: m_ConstrainProportionsScale
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6052562643221414875, guid: d70c78475c6364c1ea7f9f77a7ffeace, type: 3}

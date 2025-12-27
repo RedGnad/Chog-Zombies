@@ -16,6 +16,7 @@ namespace ChogZombies.LevelGen
         [SerializeField] float enemyOffsetZ = 3f;
         [SerializeField] float enemyHeight = 1f;
         [SerializeField] float enemyLaneOffsetX = 2.0f;
+        [SerializeField] float segmentEnvironmentYOffset = 0f;
 
         [Header("Visual Settings")] 
         [SerializeField] Vector3 gateSize = new Vector3(1f, 2f, 0.5f);
@@ -401,7 +402,7 @@ namespace ChogZombies.LevelGen
                 {
                     var env = Instantiate(segmentEnvironmentPrefab, transform);
                     env.name = $"SegmentEnv_{i}";
-                    env.transform.localPosition = new Vector3(0f, 0f, z);
+                    env.transform.localPosition = new Vector3(0f, segmentEnvironmentYOffset, z);
 
                     StripSceneControlComponents(env);
                 }
