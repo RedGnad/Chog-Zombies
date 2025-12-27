@@ -36,6 +36,12 @@ namespace ChogZombies.LevelGen
         [SerializeField] GameObject bossPrefab;
         [SerializeField] GameObject segmentEnvironmentPrefab;
 
+        [Header("Coins")]
+        [SerializeField] GameObject coinPrefab;
+        [SerializeField] int minCoinsPerLevel = 2;
+        [SerializeField] int maxCoinsPerLevel = 5;
+        [SerializeField] float coinYOffset = 0f;
+
         [Header("Visual Prefabs (Child)")]
         [SerializeField] GameObject gateVisualPrefab;
         [SerializeField] GameObject enemyVisualPrefab;
@@ -428,6 +434,61 @@ namespace ChogZombies.LevelGen
             // Boss à la fin du couloir
             float bossZ = level.Segments.Count * segmentSpacing + enemyOffsetZ;
             CreateBoss(level.Boss, new Vector3(0f, bossSize.y * 0.5f, bossZ));
+
+            SpawnCoins(level);
+        }
+
+        void SpawnCoins(LevelData level)
+        {
+            if (coinPrefab == null)
+                return;
+
+            if (level == null || level.Segments == null || level.Segments.Count == 0)
+                return;
+
+            int segmentCount = level.Segments.Count;
+
+            int minCoins = Mathf.Max(0, minCoinsPerLevel);
+            int maxCoins = Mathf.Max(minCoins, maxCoinsPerLevel);
+            if (maxCoins == 0)
+                return;
+
+            // RNG déterministe basé sur la seed du niveau ET l'index de niveau,
+            // pour que chaque (runSeed, levelIndex) ait un layout de coins unique.
+            // On force les constantes en int pour éviter toute promotion implicite en long.
+            int goldenConst = unchecked((int)0x9e3779b9);
+            int saltConst = 0x1234ABCD;
+            int coinSeed = unchecked(seed ^ (level.LevelIndex * goldenConst) ^ saltConst);
+            var rng = new System.Random(coinSeed);
+
+            // Distribution biaisée vers le minimum : on tire deux valeurs et on prend la plus petite.
+            int range = maxCoins - minCoins + 1;
+            int rawA = rng.Next(0, range);
+            int rawB = rng.Next(0, range);
+            int biasedIndex = Mathf.Min(rawA, rawB); // 0..range-1
+            int coinCount = minCoins + biasedIndex;
+
+            for (int i = 0; i < coinCount; i++)
+            {
+                int segmentIndex = rng.Next(0, segmentCount);
+
+                float baseZ = segmentIndex * segmentSpacing;
+                // Garder une marge à l'intérieur du segment pour éviter les overlaps extrêmes
+                float localZOffset = (float)rng.NextDouble() * (segmentSpacing * 0.8f);
+                float z = baseZ + localZOffset;
+
+                // Largeur du couloir approximée par gateOffsetX
+                float halfWidth = Mathf.Max(0.5f, gateOffsetX);
+                float xRandom = (float)(rng.NextDouble() * 2.0 - 1.0); // [-1,1]
+                float x = xRandom * (halfWidth * 0.9f);
+
+                // Posé au sol avec un offset configurable pour ajuster la hauteur des coins
+                float y = segmentEnvironmentYOffset + coinYOffset;
+
+                var coin = Instantiate(coinPrefab, transform);
+                coin.name = $"Coin_{i}_seg{segmentIndex}";
+                coin.transform.localPosition = new Vector3(x, y, z);
+            }
         }
 
         void CreateGate(GateData gate, Vector3 position)

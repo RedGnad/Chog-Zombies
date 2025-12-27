@@ -112,6 +112,23 @@ namespace ChogZombies.UI
             RefreshAll();
         }
 
+        public void OnRerollButton()
+        {
+            if (runGame == null)
+                runGame = FindObjectOfType<RunGameController>();
+            if (runGame == null || (runGame.State != RunGameController.RunState.Won && runGame.State != RunGameController.RunState.Lost))
+                return;
+
+            if (shop == null)
+                shop = FindObjectOfType<ShopController>();
+            if (shop == null)
+                return;
+
+            bool rerolled = shop.TryReroll();
+            if (rerolled)
+                RefreshAll();
+        }
+
         public void OnCloseButton()
         {
             SetOpen(false);

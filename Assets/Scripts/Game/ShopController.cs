@@ -197,7 +197,15 @@ namespace ChogZombies.Game
         // Handler pour le bouton UI de reroll (Unity n'affiche que les void dans OnClick)
         public void HandleRerollButton()
         {
-            TryReroll();
+            bool rerolled = TryReroll();
+            if (rerolled)
+            {
+                var ui = FindObjectOfType<ChogZombies.UI.ShopUI_TMP>();
+                if (ui != null)
+                {
+                    ui.RefreshAll();
+                }
+            }
         }
 
         public bool TryReroll()

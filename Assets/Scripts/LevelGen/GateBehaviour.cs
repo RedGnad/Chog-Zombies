@@ -53,8 +53,9 @@ namespace ChogZombies.LevelGen
 
                 if (Mathf.Abs(other.transform.position.z - z) <= sameSegmentThreshold)
                 {
+                    // Marquer l'autre porte comme consommée pour qu'elle ne soit plus prenable,
+                    // mais la laisser visible (ne pas désactiver le GameObject).
                     other._consumed = true;
-                    other.gameObject.SetActive(false);
                 }
             }
         }
