@@ -130,7 +130,6 @@ namespace ChogZombies.UI
 
         void RefreshGrid()
         {
-            // Clear existing slots
             foreach (var slot in _slots)
             {
                 if (slot != null && slot.gameObject != null)
@@ -147,9 +146,56 @@ namespace ChogZombies.UI
 
             var allItems = _meta.AllLootItems;
             Debug.Log($"[InventoryUI] RefreshGrid: allItems={allItems?.Count ?? 0}, owned={_meta.OwnedCount}/{_meta.TotalCount}");
-            foreach (var item in allItems)
+
+            var families = new Dictionary<string, List<LootItemDefinition>>();
+            if (allItems != null)
             {
-                if (item == null)
+                for (int i = 0; i < allItems.Count; i++)
+                {
+                    var item = allItems[i];
+                    if (item == null)
+                        continue;
+
+                    string family = item.FamilyId;
+                    if (string.IsNullOrEmpty(family))
+                        family = MetaProgressionController.GetKey(item);
+
+                    if (!families.TryGetValue(family, out var list))
+                    {
+                        list = new List<LootItemDefinition>();
+                        families[family] = list;
+                    }
+                    list.Add(item);
+                }
+            }
+
+            foreach (var kvp in families)
+            {
+                var list = kvp.Value;
+                if (list == null || list.Count == 0)
+                    continue;
+
+                LootItemDefinition templateItem = null;
+                LootItemDefinition bestOwned = null;
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var candidate = list[i];
+                    if (candidate == null)
+                        continue;
+
+                    if (templateItem == null)
+                        templateItem = candidate;
+
+                    if (_meta.IsOwned(candidate))
+                    {
+                        if (bestOwned == null || candidate.Rarity > bestOwned.Rarity)
+                            bestOwned = candidate;
+                    }
+                }
+
+                var displayItem = bestOwned != null ? bestOwned : templateItem;
+                if (displayItem == null)
                     continue;
 
                 var slotGO = Instantiate(itemSlotPrefab, itemGridParent);
@@ -177,15 +223,15 @@ namespace ChogZombies.UI
                 if (slot == null)
                     slot = slotGO.AddComponent<InventorySlot>();
 
-                bool isOwned = _meta.IsOwned(item);
-                bool isEquipped = _meta.IsEquipped(item);
-                Debug.Log($"[InventoryUI]   Slot for '{item.DisplayName}' (owned={isOwned}, icon={(item.Icon != null ? "yes" : "no")})");
-                slot.Setup(item, isOwned, isEquipped, GetRarityColor(item.Rarity), lockedColor);
+                bool isOwned = bestOwned != null;
+                bool isEquipped = isOwned && _meta.IsEquipped(bestOwned);
+                Debug.Log($"[InventoryUI]   Slot for family '{kvp.Key}' using '{displayItem.DisplayName}' (owned={isOwned}, icon={(displayItem.Icon != null ? "yes" : "no")})");
+                slot.Setup(displayItem, isOwned, isEquipped, GetRarityColor(displayItem.Rarity), lockedColor);
                 slot.OnClicked += OnSlotClicked;
 
                 _slots.Add(slot);
-                if (!_slotLookup.ContainsKey(item))
-                    _slotLookup.Add(item, slot);
+                if (!_slotLookup.ContainsKey(displayItem))
+                    _slotLookup.Add(displayItem, slot);
             }
 
             var gridRect = itemGridParent as RectTransform;

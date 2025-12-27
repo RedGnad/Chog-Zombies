@@ -21,10 +21,16 @@ namespace ChogZombies.Player
         [Header("Visual Progression")]
         [SerializeField] int extraPowerCostStart = 2;
         [SerializeField] int extraPowerCostIncrease = 2;
+
+        [Header("Animation")]
+        [SerializeField] string movementBoolParameter = "IsMoving";
+        [SerializeField] float movementMinSpeed = 0.05f;
         
         Queue<GameObject> _pool = new Queue<GameObject>();
         List<GameObject> _activeSoldiers = new List<GameObject>();
         int _lastSoldierCount = -1;
+        Vector3 _lastRootPosition;
+        bool _hasLastRootPosition;
 
         void Start()
         {
@@ -116,6 +122,8 @@ namespace ChogZombies.Player
                 UpdateSoldierPositions();
                 transform.hasChanged = false;
             }
+
+            UpdateMovementAnimations();
         }
 
         void UpdateVisualSoldiers(int count)
@@ -183,6 +191,38 @@ namespace ChogZombies.Player
                     _activeSoldiers[i].transform.localPosition = localPos;
                     _activeSoldiers[i].transform.rotation = Quaternion.identity;
                 }
+            }
+        }
+
+        void UpdateMovementAnimations()
+        {
+            float speed = 0f;
+            float dt = Time.deltaTime;
+            if (_hasLastRootPosition && dt > 0f)
+            {
+                speed = (transform.position - _lastRootPosition).magnitude / dt;
+            }
+
+            _lastRootPosition = transform.position;
+            _hasLastRootPosition = true;
+
+            bool isMoving = speed > Mathf.Max(0f, movementMinSpeed);
+
+            if (string.IsNullOrEmpty(movementBoolParameter))
+                return;
+
+            int count = _activeSoldiers.Count;
+            for (int i = 0; i < count; i++)
+            {
+                var soldier = _activeSoldiers[i];
+                if (soldier == null)
+                    continue;
+
+                var animator = soldier.GetComponentInChildren<Animator>();
+                if (animator == null)
+                    continue;
+
+                animator.SetBool(movementBoolParameter, isMoving);
             }
         }
 

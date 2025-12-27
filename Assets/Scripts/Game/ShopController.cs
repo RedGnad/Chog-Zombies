@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using ChogZombies.Loot;
@@ -151,7 +152,21 @@ namespace ChogZombies.Game
                 lootController = player.gameObject.AddComponent<PlayerLootController>();
 
             if (meta != null)
-                meta.TryAddOwned(item);
+            {
+                bool added = meta.TryAddOwned(item);
+                if (added)
+                {
+                    try
+                    {
+                        var lootBackend = FindObjectOfType<ChogZombies.Reown.LootBackendSync>();
+                        lootBackend?.PushForCurrentWallet();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"[Shop] Failed to push loot state to backend: {e.Message}");
+                    }
+                }
+            }
 
             Debug.Log($"Shop: bought {item.DisplayName} for {slotCost} gold.");
 

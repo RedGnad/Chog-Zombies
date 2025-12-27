@@ -13,10 +13,11 @@ MonoBehaviour:
   m_Name: LootItem 1
   m_EditorClassIdentifier: Assembly-CSharp::ChogZombies.Loot.LootItemDefinition
   id: 1
+  familyId: energy_drink
   displayName: energy drink
   description: weird can
   icon: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
-  rarity: 1
+  rarity: 0
   effectType: 1
   effectValue: 0.3
   dropWeight: 0.1

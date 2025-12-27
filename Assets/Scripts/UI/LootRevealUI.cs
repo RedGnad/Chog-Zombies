@@ -128,6 +128,8 @@ namespace ChogZombies.UI
         void SetupItemDisplay(LootItemDefinition item)
         {
             Color rarityColor = GetRarityColor(item.Rarity);
+            // Texte des items communs en blanc pour une meilleure lisibilité sur le fond gris
+            Color textColor = item.Rarity == LootRarity.Common ? Color.white : rarityColor;
 
             if (itemIcon != null)
             {
@@ -148,7 +150,7 @@ namespace ChogZombies.UI
             if (itemNameText != null)
             {
                 itemNameText.text = item.DisplayName;
-                itemNameText.color = rarityColor;
+                itemNameText.color = textColor;
                 itemNameText.alpha = 0f;
             }
 
@@ -161,7 +163,7 @@ namespace ChogZombies.UI
             if (rarityText != null)
             {
                 rarityText.text = GetRarityDisplayName(item.Rarity);
-                rarityText.color = rarityColor;
+                rarityText.color = textColor;
                 rarityText.alpha = 0f;
             }
 

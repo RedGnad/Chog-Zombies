@@ -32,6 +32,7 @@ namespace ChogZombies.UI
         Color _rarityColor = Color.white;
         Color _lockedColor = Color.gray;
         float _targetScale;
+        bool _glowLayoutInitialized;
 
         public event Action<LootItemDefinition, bool> OnClicked;
 
@@ -78,6 +79,21 @@ namespace ChogZombies.UI
                     iconImage.sprite = item.Icon;
                 }
                 iconImage.color = isOwned ? Color.white : lockedColor;
+            }
+
+            // S'assurer que le glow est derrière et légèrement plus grand que l'icône
+            if (glowImage != null && !_glowLayoutInitialized)
+            {
+                var rt = glowImage.rectTransform;
+                // Premier enfant => dessiné derrière les autres (halo en fond)
+                rt.SetAsFirstSibling();
+
+                // Légèrement plus grand que le slot pour bien dépasser
+                var size = rt.sizeDelta;
+                float extra = 20f;
+                rt.sizeDelta = new Vector2(size.x + extra, size.y + extra);
+
+                _glowLayoutInitialized = true;
             }
 
             UpdateEquippedVisuals();
@@ -129,8 +145,15 @@ namespace ChogZombies.UI
                 glowImage.gameObject.SetActive(showGlow);
                 if (showGlow)
                 {
-                    float alpha = _isEquipped ? 0.45f : 0.3f;
-                    glowImage.color = new Color(_rarityColor.r, _rarityColor.g, _rarityColor.b, alpha);
+                    // Alpha un peu plus fort pour que le halo soit bien visible sur le fond gris
+                    float alpha = _isEquipped ? 0.6f : 0.45f;
+                    var c = new Color(_rarityColor.r, _rarityColor.g, _rarityColor.b, alpha);
+                    glowImage.color = c;
+                    Debug.Log($"[InventorySlot] Glow ON for '{_item.DisplayName}' rarity={_item.Rarity} color={c}");
+                }
+                else
+                {
+                    Debug.Log($"[InventorySlot] Glow OFF for '{(_item != null ? _item.DisplayName : "<null>")}' owned={_isOwned} rarity={(_item != null ? _item.Rarity.ToString() : "<null>")}");
                 }
             }
 

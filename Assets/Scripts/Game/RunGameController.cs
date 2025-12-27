@@ -866,7 +866,21 @@ namespace ChogZombies.Game
             }
 
             if (meta != null)
-                meta.TryAddOwned(item);
+            {
+                bool added = meta.TryAddOwned(item);
+                if (added)
+                {
+                    try
+                    {
+                        var lootBackend = FindObjectOfType<LootBackendSync>();
+                        lootBackend?.PushForCurrentWallet();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"[BossLoot] Failed to push loot state to backend: {e.Message}");
+                    }
+                }
+            }
 
             Debug.Log($"Boss loot: obtained {item.DisplayName} ({item.Rarity} - {item.EffectType} +{item.EffectValue}).");
 
@@ -938,6 +952,23 @@ namespace ChogZombies.Game
 
                 s_currentGold = Mathf.Max(0, dto.gold);
                 Debug.Log($"RunGameController: backend state loaded. runBaseSeed={s_cachedRunBaseSeed} gold={s_currentGold}");
+
+                // Appliquer l'état de loot (owned / equipped) s'il est présent dans la réponse backend
+                try
+                {
+                    var meta = FindObjectOfType<ChogZombies.Loot.MetaProgressionController>();
+                    if (meta != null)
+                    {
+                        var owned = dto.ownedItems ?? Array.Empty<string>();
+                        var equipped = dto.equippedItems ?? Array.Empty<string>();
+                        Debug.Log($"RunGameController: backend loot state owned=[{string.Join(",", owned)}] equipped=[{string.Join(",", equipped)}]");
+                        meta.ApplyRemoteState(owned, equipped);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"RunGameController: failed to apply loot state from backend: {e.Message}");
+                }
             }
         }
 

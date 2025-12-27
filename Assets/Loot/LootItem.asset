@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: LootItem
   m_EditorClassIdentifier: Assembly-CSharp::ChogZombies.Loot.LootItemDefinition
   id: 0
+  familyId: simple_gun
   displayName: simple gun
   description: a simple gun
   icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}

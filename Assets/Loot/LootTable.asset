@@ -14,5 +14,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ChogZombies.Loot.LootTable
   items:
   - {fileID: 11400000, guid: 2805f046652cc4bd8b634afa16fd3f4e, type: 2}
+  - {fileID: 11400000, guid: d48fe49573b804da69fd559c828e2379, type: 2}
+  - {fileID: 11400000, guid: 3c73ccc7bac794f9d8694a34f565a76b, type: 2}
+  - {fileID: 11400000, guid: 57727d7b363354d278170b8691af6696, type: 2}
   - {fileID: 11400000, guid: 7a59cdcb825354a1c94a23c0ccc1006f, type: 2}
+  - {fileID: 11400000, guid: f4da7e125a6ec4e7c8103664b8f80dd2, type: 2}
+  - {fileID: 11400000, guid: 9957c5826531f4b3fbb0c241d0efea87, type: 2}
+  - {fileID: 11400000, guid: 44c5adc1685794b0ea49325baa50e75b, type: 2}
   - {fileID: 11400000, guid: 3df048b3a7a5c4b0f91bf143e742fb91, type: 2}
+  - {fileID: 11400000, guid: 53419a7e1dba74c2aa303606416e0028, type: 2}
+  - {fileID: 11400000, guid: 6b5d4655ceaf24912a7f72a10fee0bb7, type: 2}
+  - {fileID: 11400000, guid: 38ef8ce5edacb496588c4e68db926c1a, type: 2}
+  rarityWeights:
+  - rarity: 0
+    weight: 60
+  - rarity: 1
+    weight: 25
+  - rarity: 2
+    weight: 10
+  - rarity: 3
+    weight: 5
