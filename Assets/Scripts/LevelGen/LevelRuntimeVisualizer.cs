@@ -49,7 +49,20 @@ namespace ChogZombies.LevelGen
         [Header("Visual Prefabs (Child)")]
         [SerializeField] GameObject gateVisualPrefab;
         [SerializeField] GameObject enemyVisualPrefab;
+        [SerializeField] GameObject chaserEnemyVisualPrefab;
         [SerializeField] GameObject bossVisualPrefab;
+
+        [Header("Enemy Visual Adjustments")]
+        [SerializeField] bool normalizeEnemyVisual = true;
+        [SerializeField] Vector3 enemyVisualOffset = Vector3.zero;
+        [SerializeField] Vector3 enemyVisualRotation = Vector3.zero;
+        [SerializeField] Vector3 enemyVisualScale = Vector3.one;
+
+        [Header("Chaser Visual Adjustments")]
+        [SerializeField] bool normalizeChaserVisual = true;
+        [SerializeField] Vector3 chaserVisualOffset = Vector3.zero;
+        [SerializeField] Vector3 chaserVisualRotation = Vector3.zero;
+        [SerializeField] Vector3 chaserVisualScale = Vector3.one;
 
         [Header("Prefab Tinting")]
         [SerializeField] bool tintGatePrefab = true;
@@ -57,6 +70,15 @@ namespace ChogZombies.LevelGen
         [SerializeField] bool tintBossPrefab = true;
 
         Transform _gateLabelsRoot;
+
+        [System.Serializable]
+        struct VisualAdjustment
+        {
+            public bool normalize;
+            public Vector3 offset;
+            public Vector3 rotationEuler;
+            public Vector3 scaleMultiplier;
+        }
 
         static Shader GetRuntimeColorShader()
         {
@@ -219,7 +241,34 @@ namespace ChogZombies.LevelGen
             visual.localPosition = -localBounds.center;
         }
 
+        static readonly VisualAdjustment s_DefaultVisualAdjustment = new VisualAdjustment
+        {
+            normalize = true,
+            offset = default,
+            rotationEuler = default,
+            scaleMultiplier = Vector3.one
+        };
+
+        VisualAdjustment GetEnemyVisualAdjustment() => new VisualAdjustment
+        {
+            normalize = normalizeEnemyVisual,
+            offset = enemyVisualOffset,
+            rotationEuler = enemyVisualRotation,
+            scaleMultiplier = enemyVisualScale
+        };
+
+        VisualAdjustment GetChaserVisualAdjustment() => new VisualAdjustment
+        {
+            normalize = normalizeChaserVisual,
+            offset = chaserVisualOffset,
+            rotationEuler = chaserVisualRotation,
+            scaleMultiplier = chaserVisualScale
+        };
+
         GameObject AttachVisualChild(GameObject root, GameObject visualPrefab)
+            => AttachVisualChild(root, visualPrefab, s_DefaultVisualAdjustment);
+
+        GameObject AttachVisualChild(GameObject root, GameObject visualPrefab, VisualAdjustment adjustment)
         {
             if (root == null || visualPrefab == null)
                 return null;
@@ -230,12 +279,31 @@ namespace ChogZombies.LevelGen
             StripSceneControlComponents(v);
             DisablePhysicsComponents(v);
 
-            v.transform.localPosition = Vector3.zero;
-            v.transform.localRotation = Quaternion.identity;
-            v.transform.localScale = Vector3.one;
+            var t = v.transform;
+            t.localPosition = Vector3.zero;
+            t.localRotation = Quaternion.identity;
+            t.localScale = Vector3.one;
 
-            FitVisualToUnitBox(v.transform);
+            ApplyVisualAdjustment(t, adjustment);
             return v;
+        }
+
+        void ApplyVisualAdjustment(Transform target, VisualAdjustment adjustment)
+        {
+            if (target == null)
+                return;
+
+            if (adjustment.normalize)
+                FitVisualToUnitBox(target);
+
+            if (adjustment.offset != Vector3.zero)
+                target.localPosition += adjustment.offset;
+
+            if (adjustment.rotationEuler != Vector3.zero)
+                target.localRotation = Quaternion.Euler(adjustment.rotationEuler) * target.localRotation;
+
+            if (adjustment.scaleMultiplier != Vector3.one)
+                target.localScale = Vector3.Scale(target.localScale, adjustment.scaleMultiplier);
         }
 
         GameObject AttachBossVisualChild(GameObject root, GameObject visualPrefab)
@@ -637,7 +705,8 @@ namespace ChogZombies.LevelGen
         void CreateEnemyGroup(int enemyCount, Vector3 position)
         {
             GameObject go;
-            if (enemyVisualPrefab != null)
+            var visualPrefab = enemyVisualPrefab;
+            if (visualPrefab != null)
             {
                 go = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 go.transform.SetParent(transform, false);
@@ -662,13 +731,13 @@ namespace ChogZombies.LevelGen
             go.transform.localScale = new Vector3(scaleX, enemySizeBase.y, enemySizeBase.z);
 
             Color enemyColor = new Color(0.2f, 0.6f, 1f);
-            if (enemyVisualPrefab != null)
+            if (visualPrefab != null)
             {
                 var renderer = go.GetComponent<Renderer>();
                 if (renderer != null)
                     renderer.enabled = false;
 
-                var visualGo = AttachVisualChild(go, enemyVisualPrefab);
+                var visualGo = AttachVisualChild(go, visualPrefab, GetEnemyVisualAdjustment());
                 if (visualGo != null && tintEnemyPrefab)
                     ApplyTintToHierarchy(visualGo, enemyColor);
             }
@@ -720,7 +789,8 @@ namespace ChogZombies.LevelGen
         void CreateChaserEnemyGroup(int enemyCount, Vector3 position)
         {
             GameObject go;
-            if (enemyVisualPrefab != null)
+            var visualPrefab = chaserEnemyVisualPrefab != null ? chaserEnemyVisualPrefab : enemyVisualPrefab;
+            if (visualPrefab != null)
             {
                 go = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 go.transform.SetParent(transform, false);
@@ -745,13 +815,14 @@ namespace ChogZombies.LevelGen
             go.transform.localScale = new Vector3(scaleX, enemySizeBase.y, enemySizeBase.z);
 
             Color chaserColor = new Color(1.0f, 0.55f, 0.2f);
-            if (enemyVisualPrefab != null)
+            if (visualPrefab != null)
             {
                 var renderer = go.GetComponent<Renderer>();
                 if (renderer != null)
                     renderer.enabled = false;
 
-                var visualGo = AttachVisualChild(go, enemyVisualPrefab);
+                var adjustment = chaserEnemyVisualPrefab != null ? GetChaserVisualAdjustment() : GetEnemyVisualAdjustment();
+                var visualGo = AttachVisualChild(go, visualPrefab, adjustment);
                 if (visualGo != null && tintEnemyPrefab)
                     ApplyTintToHierarchy(visualGo, chaserColor);
             }

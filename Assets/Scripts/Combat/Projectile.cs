@@ -122,10 +122,12 @@ namespace ChogZombies.Combat
             projectile.Initialize(direction, speed, damage, lifeTime);
 
             var col = go.GetComponent<Collider>();
-            if (col != null)
+            if (col == null)
             {
-                col.isTrigger = true;
+                col = go.AddComponent<SphereCollider>();
+                ((SphereCollider)col).radius = 0.25f;
             }
+            col.isTrigger = true;
 
             // Appliquer la vitesse après que le Rigidbody existe.
 #if UNITY_6000_0_OR_NEWER

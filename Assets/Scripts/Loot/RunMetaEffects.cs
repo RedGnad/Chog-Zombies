@@ -16,8 +16,8 @@ namespace ChogZombies.Loot
         /// </summary>
         public static float ExpectedExtraCoinsOnMap { get; private set; }
 
-        /// <summary>Bonus multiplicatif appliqué aux dégâts/portée à distance.</summary>
-        public static float RangeDamageBonus { get; private set; }
+        /// <summary>Bonus multiplicatif appliqué à la portée effective des projectiles.</summary>
+        public static float ProjectileRangeBonus { get; private set; }
 
         /// <summary>Bonus de puissance appliqué pour ce run (run-only).</summary>
         public static float StartRunPowerBonus { get; private set; }
@@ -40,6 +40,12 @@ namespace ChogZombies.Loot
         /// <summary>Dégâts de contact infligés par seconde.</summary>
         public static float ContactDamagePerSecond { get; private set; }
 
+        /// <summary>Dégâts par seconde de l'aura de pointes.</summary>
+        public static float SpikeAuraDamagePerSecond { get; private set; }
+
+        /// <summary>Bonus de rayon ajouté à l'aura de pointes.</summary>
+        public static float SpikeAuraRadiusBonus { get; private set; }
+
         /// <summary>Puissance cumulée des drones gardiens.</summary>
         public static float GuardianDronePower { get; private set; }
 
@@ -50,11 +56,13 @@ namespace ChogZombies.Loot
         {
             CoinDropChancePerEnemy = 0f;
             ExpectedExtraCoinsOnMap = 0f;
-            RangeDamageBonus = 0f;
+            ProjectileRangeBonus = 0f;
             StartRunPowerBonus = 0f;
             CoinMagnetRadiusBonus = 0f;
             RunLootLuckBonus = 0f;
             ContactDamagePerSecond = 0f;
+            SpikeAuraDamagePerSecond = 0f;
+            SpikeAuraRadiusBonus = 0f;
             GuardianDronePower = 0f;
             AegisCharges = 0;
             // Les bonus permanents sont recalculés via l'équipement méta au début d'un run.
@@ -75,9 +83,9 @@ namespace ChogZombies.Loot
             ExpectedExtraCoinsOnMap = Mathf.Max(0f, ExpectedExtraCoinsOnMap + delta);
         }
 
-        public static void AddRangeDamageBonus(float delta)
+        public static void AddProjectileRangeBonus(float delta)
         {
-            RangeDamageBonus = Mathf.Max(0f, RangeDamageBonus + delta);
+            ProjectileRangeBonus = Mathf.Max(0f, ProjectileRangeBonus + delta);
         }
 
         public static void AddStartRunPower(float delta)
@@ -120,6 +128,16 @@ namespace ChogZombies.Loot
         public static void AddContactDamage(float delta)
         {
             ContactDamagePerSecond = Mathf.Max(0f, ContactDamagePerSecond + delta);
+        }
+
+        public static void AddSpikeAuraDamage(float delta)
+        {
+            SpikeAuraDamagePerSecond = Mathf.Max(0f, SpikeAuraDamagePerSecond + delta);
+        }
+
+        public static void AddSpikeAuraRadius(float delta)
+        {
+            SpikeAuraRadiusBonus = Mathf.Max(0f, SpikeAuraRadiusBonus + delta);
         }
 
         public static void AddGuardianDronePower(float delta)

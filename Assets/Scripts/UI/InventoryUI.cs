@@ -410,6 +410,7 @@ namespace ChogZombies.UI
                 LootEffectType.FireRateMultiplier => $"+{percent:F0}% Fire rate",
                 LootEffectType.ArmorDamageReduction => $"-{percent:F0}% Damage taken",
                 LootEffectType.CoinDropChanceOnKill => $"+{percent:F0}% coin drop chance",
+                LootEffectType.RangeDamageBonus => $"+{percent:F0}% range",
                 LootEffectType.ExtraCoinsOnMap => $"+{percent:F0}% extra coins on map",
                 LootEffectType.StartRunPowerBoost => $"+{percent:F0}% start power",
                 LootEffectType.PersistentStartPower => $"+{percent:F0}% permanent start power",

@@ -56,6 +56,7 @@ namespace ChogZombies.UI
         [SerializeField] AudioClip rareRevealSfx;
         [SerializeField] AudioClip epicRevealSfx;
         [SerializeField] AudioClip legendaryRevealSfx;
+        [SerializeField] AudioClip mythicRevealSfx;
 
         public event Action OnContinueClicked;
         public event Action<LootItemDefinition> OnEquipClicked;
@@ -405,8 +406,10 @@ namespace ChogZombies.UI
                     clip = epicRevealSfx;
                     break;
                 case LootRarity.Legendary:
-                case LootRarity.Mythic:
                     clip = legendaryRevealSfx;
+                    break;
+                case LootRarity.Mythic:
+                    clip = mythicRevealSfx != null ? mythicRevealSfx : (legendaryRevealSfx != null ? legendaryRevealSfx : epicRevealSfx);
                     break;
                 default:
                     clip = commonRevealSfx;

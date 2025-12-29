@@ -3,6 +3,7 @@ using ChogZombies.Combat;
 using ChogZombies.LevelGen;
 using ChogZombies.Enemies;
 using ChogZombies.Game;
+using ChogZombies.Loot;
 
 namespace ChogZombies.Player
 {
@@ -24,6 +25,7 @@ namespace ChogZombies.Player
         [SerializeField] float powerDamageMultiplier = 1.2f;
         [SerializeField] Transform firePoint;
         [SerializeField] Vector3 projectileScale = new Vector3(0.25f, 0.25f, 0.25f);
+        [SerializeField] Vector3 projectileOffset = Vector3.zero;
         [SerializeField] float projectileLifetime = 0.6f;
         [SerializeField] GameObject projectilePrefab;
 
@@ -42,6 +44,20 @@ namespace ChogZombies.Player
         [SerializeField] int soldiersAtMaxScale = 70;
         [SerializeField] float visualScaleExponent = 0.75f;
 
+        [Header("Spike Aura")]
+        [SerializeField] bool enableSpikeAura = true;
+        [SerializeField, Min(0f)] float spikeAuraBaseRadius = 0.8f;
+        [SerializeField, Min(0.05f)] float spikeAuraTickInterval = 0.25f;
+        [SerializeField, Min(1)] int spikeAuraMaxTargets = 24;
+        [SerializeField] LayerMask spikeAuraLayerMask = ~0;
+        [SerializeField, Min(0f)] float spikeAuraMaxDamagePerTick = 40f;
+        [SerializeField] bool debugSpikeAuraHits = false;
+        [SerializeField] ParticleSystem spikeAuraParticle;
+        [SerializeField] TrailRenderer spikeAuraTrail;
+        [SerializeField] SpriteRenderer spikeAuraIndicator;
+        [Header("Aegis")]
+        [SerializeField] bool debugAegisConsumption = false;
+
         float _fireTimer;
 
         Vector3 _baseVisualScale;
@@ -49,6 +65,10 @@ namespace ChogZombies.Player
         float _damageMultiplierFromLoot = 1f;
         float _fireRateMultiplierFromLoot = 1f;
         float _damageTakenMultiplierFromLoot = 1f;
+        float _spikeAuraTimer;
+        Collider[] _spikeAuraResults;
+        int[] _spikeAuraProcessedIds;
+        float _currentSpikeAuraRadius;
 
         public int SoldierCount { get; private set; }
 
@@ -85,6 +105,14 @@ namespace ChogZombies.Player
 
             _baseVisualScale = visualRoot.localScale;
             UpdateVisualSoldiers();
+
+            int maxTargets = Mathf.Max(1, spikeAuraMaxTargets);
+            _spikeAuraResults = new Collider[maxTargets];
+            _spikeAuraProcessedIds = new int[maxTargets];
+
+            // Seul le joueur principal conserve l'indicateur centralisé.
+            if (!IsMain && spikeAuraIndicator != null)
+                spikeAuraIndicator.gameObject.SetActive(false);
         }
 
         public void ApplyDamageMultiplier(float factor)
@@ -119,12 +147,157 @@ namespace ChogZombies.Player
             }
         }
 
+        void HandleSpikeAuraDamage()
+        {
+            bool auraEnabled = enableSpikeAura;
+            if (auraEnabled)
+            {
+                var loot = PlayerLootController.Instance;
+                auraEnabled = loot != null && loot.HasActiveSpikeAura;
+            }
+
+            if (!auraEnabled)
+            {
+                UpdateSpikeAuraVisual(0f, false);
+                return;
+            }
+
+            float auraDps = Mathf.Max(0f, RunMetaEffects.SpikeAuraDamagePerSecond);
+            if (auraDps <= 0f)
+            {
+                UpdateSpikeAuraVisual(0f, false);
+                return;
+            }
+
+            float interval = Mathf.Max(0.05f, spikeAuraTickInterval);
+            _spikeAuraTimer += Time.deltaTime;
+            if (_spikeAuraTimer < interval)
+                return;
+
+            _spikeAuraTimer -= interval;
+
+            float radius = Mathf.Max(0.1f, spikeAuraBaseRadius + RunMetaEffects.SpikeAuraRadiusBonus);
+            UpdateSpikeAuraVisual(radius, true);
+
+            int hitCount = Physics.OverlapSphereNonAlloc(
+                transform.position,
+                radius,
+                _spikeAuraResults,
+                spikeAuraLayerMask,
+                QueryTriggerInteraction.Collide);
+
+            if (hitCount <= 0)
+                return;
+
+            float damagePerTarget = Mathf.Clamp(auraDps * interval, 0f, spikeAuraMaxDamagePerTick);
+            int processed = 0;
+
+            for (int i = 0; i < hitCount; i++)
+            {
+                var col = _spikeAuraResults[i];
+                if (col == null)
+                    continue;
+
+                if (TryApplySpikeAuraDamage(col, damagePerTarget, ref processed))
+                    continue;
+
+                var parent = col.GetComponentInParent<Component>();
+                if (parent != null)
+                    TryApplySpikeAuraDamage(parent, damagePerTarget, ref processed);
+
+                if (processed >= _spikeAuraProcessedIds.Length)
+                    break;
+            }
+        }
+
+        bool TryApplySpikeAuraDamage(Component component, float damage, ref int processedCount)
+        {
+            if (component == null)
+                return false;
+
+            int targetId = component.GetInstanceID();
+            for (int j = 0; j < processedCount; j++)
+            {
+                if (_spikeAuraProcessedIds[j] == targetId)
+                    return false;
+            }
+
+            bool damaged = false;
+            if (component.TryGetComponent<Enemies.EnemyGroupBehaviour>(out var group))
+            {
+                group.TakeDamage(damage);
+                damaged = true;
+            }
+            else if (component.TryGetComponent<Enemies.EnemyChaserGroupBehaviour>(out var chaser))
+            {
+                chaser.TakeDamage(damage);
+                damaged = true;
+            }
+
+            if (damaged)
+            {
+                if (processedCount < _spikeAuraProcessedIds.Length)
+                    _spikeAuraProcessedIds[processedCount++] = targetId;
+
+                if (debugSpikeAuraHits)
+                    Debug.Log($"[SpikeAura] Hit {component.name} for {damage:F1} (radius={spikeAuraBaseRadius + RunMetaEffects.SpikeAuraRadiusBonus:F2})");
+            }
+
+            return damaged;
+        }
+
+        void UpdateSpikeAuraVisual(float radius, bool active)
+        {
+            _currentSpikeAuraRadius = active ? radius : 0f;
+
+            if (spikeAuraParticle != null)
+            {
+                var shape = spikeAuraParticle.shape;
+                shape.radius = Mathf.Max(0f, _currentSpikeAuraRadius);
+
+                if (active)
+                {
+                    if (!spikeAuraParticle.isPlaying)
+                        spikeAuraParticle.Play();
+                }
+                else if (spikeAuraParticle.isPlaying)
+                {
+                    spikeAuraParticle.Stop();
+                }
+            }
+
+            if (spikeAuraTrail != null)
+            {
+                spikeAuraTrail.gameObject.SetActive(active);
+                if (active)
+                {
+                    float width = Mathf.Max(0.05f, _currentSpikeAuraRadius * 2f);
+                    spikeAuraTrail.startWidth = width;
+                    spikeAuraTrail.endWidth = width;
+                }
+            }
+
+            if (spikeAuraIndicator != null)
+            {
+                spikeAuraIndicator.gameObject.SetActive(active);
+                if (active)
+                {
+                    float diameter = Mathf.Max(0.01f, _currentSpikeAuraRadius * 2f);
+                    spikeAuraIndicator.transform.localScale = new Vector3(diameter, diameter, 1f);
+                    var color = spikeAuraIndicator.color;
+                    color.a = Mathf.Clamp01(_currentSpikeAuraRadius > 0f ? color.a : 0f);
+                    spikeAuraIndicator.color = color;
+                }
+            }
+        }
+
         void Update()
         {
             if (!IsMain)
                 return;
 
             AutoShoot();
+            HandleSpikeAuraDamage();
         }
 
         void AutoShoot()
@@ -146,9 +319,15 @@ namespace ChogZombies.Player
         void FireOneShot()
         {
             bool validFirePoint = firePoint != null && firePoint.IsChildOf(transform);
-            Vector3 origin = validFirePoint
-                ? firePoint.position
-                : transform.position + Vector3.up * 1.0f;
+            Vector3 origin;
+            if (validFirePoint)
+            {
+                origin = firePoint.position + firePoint.TransformVector(projectileOffset);
+            }
+            else
+            {
+                origin = transform.position + Vector3.up * 1.0f + transform.TransformVector(projectileOffset);
+            }
 
             Vector3 dir = transform.forward;
 
@@ -158,8 +337,10 @@ namespace ChogZombies.Player
             float powerBonus = Mathf.Pow(Mathf.Max(1, SoldierCount), powerExp) * powerDamageMultiplier * powerFactor;
             float damage = (clampedBase + powerBonus) * _damageMultiplierFromLoot;
 
+            float rangeMultiplier = 1f + Mathf.Max(0f, RunMetaEffects.ProjectileRangeBonus);
+            float effectiveMaxDistance = maxShootDistance * rangeMultiplier;
             float maxLifetimeByDistance = projectileSpeed > 0.01f
-                ? (maxShootDistance / projectileSpeed)
+                ? (effectiveMaxDistance / projectileSpeed)
                 : projectileLifetime;
             float life = Mathf.Max(0.05f, Mathf.Min(projectileLifetime, maxLifetimeByDistance));
 
@@ -214,6 +395,14 @@ namespace ChogZombies.Player
         {
             if (loss <= 0)
                 return;
+
+            if (RunMetaEffects.AegisCharges > 0)
+            {
+                RunMetaEffects.AddAegisCharges(-1);
+                if (debugAegisConsumption)
+                    Debug.Log($"[Aegis] Charge consumed. Remaining={RunMetaEffects.AegisCharges}");
+                return;
+            }
 
             int before = SoldierCount;
 

@@ -26,11 +26,20 @@ namespace ChogZombies.Loot
             new RarityMultiplier{rarity = LootRarity.Mythic,    multiplier = 4f},
         };
 
+        [Header("Spike Aura")]
+        [SerializeField, Min(0f)] float spikeAuraDamagePerEffectPoint = 14f;
+        [SerializeField, Min(0f)] float spikeAuraRadiusPerEffectPoint = 2.2f;
+        [SerializeField] bool debugSpikeAuraLogs = false;
+        [SerializeField] bool debugGuardianLogs = false;
+        [SerializeField] bool debugAegisLogs = false;
+
         readonly List<LootItemDefinition> _equippedItems = new List<LootItemDefinition>();
+        int _activeSpikeAuraSources;
 
         public static PlayerLootController Instance { get; private set; }
         public IReadOnlyList<LootItemDefinition> EquippedItems => _equippedItems;
         public event Action<LootItemDefinition, bool> EquipmentChanged;
+        public bool HasActiveSpikeAura => _activeSpikeAuraSources > 0 && RunMetaEffects.SpikeAuraDamagePerSecond > 0f;
 
         void Awake()
         {
@@ -43,6 +52,8 @@ namespace ChogZombies.Loot
 
             if (player == null)
                 player = GetComponent<PlayerCombatController>();
+
+            _activeSpikeAuraSources = 0;
         }
 
         void OnDestroy()
@@ -179,7 +190,7 @@ namespace ChogZombies.Loot
                 {
                     float scaled = Mathf.Max(0f, item.EffectValue) * GetRarityMultiplier(item.Rarity);
                     float delta = apply ? scaled : -scaled;
-                    RunMetaEffects.AddRangeDamageBonus(delta);
+                    RunMetaEffects.AddProjectileRangeBonus(delta);
                     break;
                 }
                 case LootEffectType.StartRunPowerBoost:
@@ -227,8 +238,30 @@ namespace ChogZombies.Loot
                 case LootEffectType.ContactDamage:
                 {
                     float scaled = Mathf.Max(0f, item.EffectValue) * GetRarityMultiplier(item.Rarity);
-                    float delta = apply ? scaled : -scaled;
-                    RunMetaEffects.AddContactDamage(delta);
+                    bool hasEffect = scaled > 0f;
+                    float damageDelta = ComputeSpikeAuraDamageFromValue(scaled);
+                    float radiusDelta = ComputeSpikeAuraRadiusFromValue(scaled);
+                    if (!apply)
+                    {
+                        damageDelta = -damageDelta;
+                        radiusDelta = -radiusDelta;
+                    }
+
+                    if (hasEffect)
+                    {
+                        if (apply)
+                            _activeSpikeAuraSources++;
+                        else
+                            _activeSpikeAuraSources = Mathf.Max(0, _activeSpikeAuraSources - 1);
+
+                        if (debugSpikeAuraLogs)
+                        {
+                            Debug.Log($"[SpikeAura] {(apply ? "Equip" : "Unequip")} '{item.DisplayName}' scaled={scaled:F2} dmgDelta={damageDelta:F2} radiusDelta={radiusDelta:F2} activeSources={_activeSpikeAuraSources} totalDps={RunMetaEffects.SpikeAuraDamagePerSecond + damageDelta:F2}");
+                        }
+                    }
+
+                    RunMetaEffects.AddSpikeAuraDamage(damageDelta);
+                    RunMetaEffects.AddSpikeAuraRadius(radiusDelta);
                     break;
                 }
                 case LootEffectType.GuardianDrone:
@@ -236,6 +269,10 @@ namespace ChogZombies.Loot
                     float scaled = Mathf.Max(0f, item.EffectValue) * GetRarityMultiplier(item.Rarity);
                     float delta = apply ? scaled : -scaled;
                     RunMetaEffects.AddGuardianDronePower(delta);
+                    if (debugGuardianLogs && Mathf.Abs(delta) > Mathf.Epsilon)
+                    {
+                        Debug.Log($"[GuardianDrone] {(apply ? "Equip" : "Unequip")} '{item.DisplayName}' delta={delta:F2} total={RunMetaEffects.GuardianDronePower:F2}");
+                    }
                     break;
                 }
                 case LootEffectType.AegisCharges:
@@ -243,6 +280,10 @@ namespace ChogZombies.Loot
                     int amount = Mathf.RoundToInt(Mathf.Max(0f, item.EffectValue) * GetRarityMultiplier(item.Rarity));
                     int delta = apply ? amount : -amount;
                     RunMetaEffects.AddAegisCharges(delta);
+                    if (debugAegisLogs && delta != 0)
+                    {
+                        Debug.Log($"[Aegis] {(apply ? "Equip" : "Unequip")} '{item.DisplayName}' delta={delta} total={RunMetaEffects.AegisCharges}");
+                    }
                     break;
                 }
             }
@@ -274,6 +315,16 @@ namespace ChogZombies.Loot
                 }
             }
             return 1f;
+        }
+
+        float ComputeSpikeAuraDamageFromValue(float effectPoints)
+        {
+            return Mathf.Max(0f, effectPoints) * Mathf.Max(0f, spikeAuraDamagePerEffectPoint);
+        }
+
+        float ComputeSpikeAuraRadiusFromValue(float effectPoints)
+        {
+            return Mathf.Max(0f, effectPoints) * Mathf.Max(0f, spikeAuraRadiusPerEffectPoint);
         }
 
         static string GetKey(LootItemDefinition item)
