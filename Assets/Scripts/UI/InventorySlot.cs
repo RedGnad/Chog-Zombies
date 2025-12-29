@@ -19,6 +19,8 @@ namespace ChogZombies.UI
         [SerializeField] GameObject newBadge;
         [SerializeField] GameObject equippedMarker;
         [SerializeField] GameObject lockedOverlay;
+        [SerializeField] Color lockedIconTint = new Color(0.05f, 0.05f, 0.05f, 1f);
+        [SerializeField, Range(0f, 1f)] float lockedOverlayAlpha = 0.4f;
 
         [Header("Animation")]
         [SerializeField] float hoverScale = 1.1f;
@@ -78,7 +80,18 @@ namespace ChogZombies.UI
                 {
                     iconImage.sprite = item.Icon;
                 }
-                iconImage.color = isOwned ? Color.white : lockedColor;
+
+                if (isOwned)
+                {
+                    iconImage.color = Color.white;
+                }
+                else
+                {
+                    // Afficher l'icône en mode silhouette (teinte sombre) plutôt qu'un carré noir.
+                    Color tint = lockedIconTint;
+                    tint.a = 1f;
+                    iconImage.color = tint;
+                }
             }
 
             // S'assurer que le glow est derrière et légèrement plus grand que l'icône
@@ -101,6 +114,15 @@ namespace ChogZombies.UI
             if (lockedOverlay != null)
             {
                 lockedOverlay.SetActive(!isOwned);
+
+                var overlayImage = lockedOverlay.GetComponent<Image>();
+                if (overlayImage != null)
+                {
+                    if (!isOwned)
+                        overlayImage.color = new Color(0f, 0f, 0f, lockedOverlayAlpha);
+                    else
+                        overlayImage.color = Color.clear;
+                }
             }
 
             if (newBadge != null)
@@ -141,7 +163,9 @@ namespace ChogZombies.UI
 
             if (glowImage != null)
             {
-                bool showGlow = _isOwned && _item != null && _item.Rarity >= LootRarity.Rare;
+                bool showGlow = _isOwned
+                                && _item != null
+                                && LootItemDefinition.GetRarityRank(_item.Rarity) >= LootItemDefinition.GetRarityRank(LootRarity.Uncommon);
                 glowImage.gameObject.SetActive(showGlow);
                 if (showGlow)
                 {

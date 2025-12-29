@@ -34,9 +34,11 @@ namespace ChogZombies.UI
 
         [Header("Rarity Colors")]
         [SerializeField] Color commonColor = new Color(0.7f, 0.7f, 0.7f);
+        [SerializeField] Color uncommonColor = new Color(0.4f, 0.8f, 0.4f);
         [SerializeField] Color rareColor = new Color(0.2f, 0.5f, 1f);
         [SerializeField] Color epicColor = new Color(0.6f, 0.2f, 0.8f);
         [SerializeField] Color legendaryColor = new Color(1f, 0.7f, 0.2f);
+        [SerializeField] Color mythicColor = new Color(1f, 0.3f, 0.9f);
 
         [Header("Animation")]
         [SerializeField] float fadeInDuration = 0.3f;
@@ -62,6 +64,7 @@ namespace ChogZombies.UI
 
         LootItemDefinition _currentItem;
         bool _isRevealing;
+        bool _isNoLoot;
 
         void Awake()
         {
@@ -103,6 +106,7 @@ namespace ChogZombies.UI
 
             _currentItem = item;
             _isRevealing = true;
+            _isNoLoot = false;
 
             if (overlayRoot != null)
                 overlayRoot.SetActive(true);
@@ -115,6 +119,7 @@ namespace ChogZombies.UI
         {
             _isRevealing = false;
             _currentItem = null;
+            _isNoLoot = false;
 
             StopAllCoroutines();
 
@@ -164,6 +169,63 @@ namespace ChogZombies.UI
             {
                 rarityText.text = GetRarityDisplayName(item.Rarity);
                 rarityText.color = textColor;
+                rarityText.alpha = 0f;
+            }
+
+            if (continueButton != null)
+                continueButton.gameObject.SetActive(false);
+
+            if (equipButton != null)
+                equipButton.gameObject.SetActive(false);
+        }
+
+        public void ShowNoLoot()
+        {
+            _currentItem = null;
+            _isRevealing = true;
+            _isNoLoot = true;
+
+            if (overlayRoot != null)
+                overlayRoot.SetActive(true);
+
+            SetupNoLootDisplay();
+            StartCoroutine(NoLootSequence());
+        }
+
+        void SetupNoLootDisplay()
+        {
+            if (itemIcon != null)
+            {
+                itemIcon.sprite = null;
+                itemIcon.color = new Color(1, 1, 1, 0);
+                itemIcon.transform.localScale = Vector3.one * iconScaleStart;
+            }
+
+            if (itemFrame != null)
+                itemFrame.color = commonColor;
+
+            if (itemGlow != null)
+            {
+                itemGlow.gameObject.SetActive(false);
+            }
+
+            if (itemNameText != null)
+            {
+                itemNameText.text = "No loot this time.";
+                itemNameText.color = Color.white;
+                itemNameText.alpha = 0f;
+            }
+
+            if (itemDescriptionText != null)
+            {
+                itemDescriptionText.text = "You didn't receive any item. Better luck next time!";
+                itemDescriptionText.alpha = 0f;
+            }
+
+            if (rarityText != null)
+            {
+                rarityText.text = "NO LOOT";
+                rarityText.color = commonColor;
                 rarityText.alpha = 0f;
             }
 
@@ -260,8 +322,8 @@ namespace ChogZombies.UI
                 yield return null;
             }
 
-            // Start glow particles for rare+
-            if (glowParticles != null && item.Rarity >= LootRarity.Rare)
+            // Start glow particles for uncommon+
+            if (glowParticles != null && LootItemDefinition.GetRarityRank(item.Rarity) >= LootItemDefinition.GetRarityRank(LootRarity.Uncommon))
             {
                 var main = glowParticles.main;
                 main.startColor = GetRarityColor(item.Rarity);
@@ -280,19 +342,76 @@ namespace ChogZombies.UI
             _isRevealing = false;
         }
 
+        IEnumerator NoLootSequence()
+        {
+            float elapsed = 0f;
+            while (elapsed < fadeInDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                if (canvasGroup != null)
+                    canvasGroup.alpha = Mathf.Lerp(0f, 1f, elapsed / fadeInDuration);
+                yield return null;
+            }
+            if (canvasGroup != null)
+                canvasGroup.alpha = 1f;
+
+            yield return new WaitForSecondsRealtime(revealDelay);
+
+            PlayRevealSfx(LootRarity.Common);
+
+            float textFadeDuration = 0.3f;
+            elapsed = 0f;
+            while (elapsed < textFadeDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = elapsed / textFadeDuration;
+
+                if (rarityText != null)
+                    rarityText.alpha = t;
+                if (itemNameText != null)
+                    itemNameText.alpha = t;
+                if (itemDescriptionText != null)
+                    itemDescriptionText.alpha = t;
+
+                yield return null;
+            }
+
+            yield return new WaitForSecondsRealtime(0.2f);
+
+            if (continueButton != null)
+                continueButton.gameObject.SetActive(true);
+
+            _isRevealing = false;
+        }
+
         void PlayRevealSfx(LootRarity rarity)
         {
             if (audioSource == null)
                 return;
 
-            AudioClip clip = rarity switch
+            AudioClip clip;
+            switch (rarity)
             {
-                LootRarity.Common => commonRevealSfx,
-                LootRarity.Rare => rareRevealSfx,
-                LootRarity.Epic => epicRevealSfx,
-                LootRarity.Legendary => legendaryRevealSfx,
-                _ => commonRevealSfx
-            };
+                case LootRarity.Common:
+                    clip = commonRevealSfx;
+                    break;
+                case LootRarity.Uncommon:
+                    clip = rareRevealSfx != null ? rareRevealSfx : commonRevealSfx;
+                    break;
+                case LootRarity.Rare:
+                    clip = rareRevealSfx;
+                    break;
+                case LootRarity.Epic:
+                    clip = epicRevealSfx;
+                    break;
+                case LootRarity.Legendary:
+                case LootRarity.Mythic:
+                    clip = legendaryRevealSfx;
+                    break;
+                default:
+                    clip = commonRevealSfx;
+                    break;
+            }
 
             if (clip != null)
                 audioSource.PlayOneShot(clip);
@@ -300,26 +419,44 @@ namespace ChogZombies.UI
 
         Color GetRarityColor(LootRarity rarity)
         {
-            return rarity switch
+            switch (rarity)
             {
-                LootRarity.Common => commonColor,
-                LootRarity.Rare => rareColor,
-                LootRarity.Epic => epicColor,
-                LootRarity.Legendary => legendaryColor,
-                _ => commonColor
-            };
+                case LootRarity.Common:
+                    return commonColor;
+                case LootRarity.Uncommon:
+                    return uncommonColor;
+                case LootRarity.Rare:
+                    return rareColor;
+                case LootRarity.Epic:
+                    return epicColor;
+                case LootRarity.Legendary:
+                    return legendaryColor;
+                case LootRarity.Mythic:
+                    return mythicColor;
+                default:
+                    return commonColor;
+            }
         }
 
         string GetRarityDisplayName(LootRarity rarity)
         {
-            return rarity switch
+            switch (rarity)
             {
-                LootRarity.Common => "COMMON",
-                LootRarity.Rare => "RARE",
-                LootRarity.Epic => "EPIC",
-                LootRarity.Legendary => "LEGENDARY",
-                _ => "COMMON"
-            };
+                case LootRarity.Common:
+                    return "COMMON";
+                case LootRarity.Uncommon:
+                    return "UNCOMMON";
+                case LootRarity.Rare:
+                    return "RARE";
+                case LootRarity.Epic:
+                    return "EPIC";
+                case LootRarity.Legendary:
+                    return "LEGENDARY";
+                case LootRarity.Mythic:
+                    return "MYTHIC";
+                default:
+                    return "COMMON";
+            }
         }
 
         void HandleContinue()

@@ -16,8 +16,9 @@ MonoBehaviour:
   familyId: energy_drink
   displayName: energy drink
   description: weird can
-  icon: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  icon: {fileID: 21300000, guid: 888db3a0e2355431b9a0b77c3ff8af34, type: 3}
   rarity: 3
   effectType: 1
-  effectValue: 0.3
+  effectValue: 0.1
   dropWeight: 0.1
+  runOnly: 0

@@ -27,6 +27,7 @@ namespace ChogZombies.Game
 
         [Header("References")]
         [SerializeField] LevelRuntimeVisualizer levelVisualizer;
+        [SerializeField] float bossStopOffsetZ = 2f;
         [SerializeField] PlayerCombatController player;
 
         [Header("Run Parameters")]
@@ -407,6 +408,7 @@ namespace ChogZombies.Game
                 if (autoRunner != null)
                 {
                     autoRunner.Enabled = false;
+                    autoRunner.SetMaxWorldZ(float.PositiveInfinity);
                 }
             }
 
@@ -604,12 +606,49 @@ namespace ChogZombies.Game
                 }
             }
 
+            var lootController = EnsurePlayerLootController();
+            ChogZombies.Loot.MetaProgressionController metaController = null;
+            if (lootController != null)
+            {
+                metaController = FindObjectOfType<ChogZombies.Loot.MetaProgressionController>();
+            }
+
+            RunMetaEffects.Reset();
+            if (metaController != null && lootController != null)
+            {
+                metaController.ApplyEquippedToPlayer(lootController);
+                ConsumeAndApplyRunOnlyItems(metaController, lootController);
+
+                if (player != null)
+                {
+                    float runOnlyPowerBonus = Mathf.Max(0f, RunMetaEffects.StartRunPowerBonus);
+                    float persistentPowerBonus = Mathf.Max(0f, RunMetaEffects.PersistentStartPowerBonus);
+                    float totalBonus = runOnlyPowerBonus + persistentPowerBonus;
+                    if (totalBonus > 0f)
+                    {
+                        int soldiersBonus = Mathf.Max(0, Mathf.RoundToInt(totalBonus));
+                        if (soldiersBonus > 0)
+                        {
+                            player.AddPower(soldiersBonus);
+                            Debug.Log($"[RunGameController] Granted {soldiersBonus} start power (runOnly={runOnlyPowerBonus}, persistent={persistentPowerBonus}).");
+                        }
+                        RunMetaEffects.ConsumeStartRunPowerBonus();
+                    }
+                }
+            }
+
             if (levelVisualizer != null)
             {
                 Debug.Log($"RunGameController: building level. levelIndex={_levelIndexUsed} seed={seed}");
-                levelVisualizer.BuildWithParams(_levelIndexUsed, seed);
+                float bossStopZ = levelVisualizer.BuildWithParams(_levelIndexUsed, seed);
                 _levelBuilt = true;
                 Debug.Log("RunGameController: level built.");
+
+                if (autoRunner != null)
+                {
+                    float zOffset = Mathf.Max(0f, bossStopOffsetZ);
+                    autoRunner.SetMaxWorldZ(bossStopZ - zOffset);
+                }
             }
 
             if (autoRunner != null)
@@ -617,15 +656,11 @@ namespace ChogZombies.Game
                 await Task.Yield();
                 autoRunner.Enabled = true;
             }
-            _boss = FindObjectOfType<BossBehaviour>();
 
-            var lootController = EnsurePlayerLootController();
-            if (lootController != null)
-            {
-                var meta = FindObjectOfType<ChogZombies.Loot.MetaProgressionController>();
-                if (meta != null)
-                    meta.ApplyEquippedToPlayer(lootController);
-            }
+            // Le boss logique est toujours exposé via BossBehaviour.ActiveInstance
+            // (initialisé dans BossBehaviour.Initialize). On ne s'appuie plus sur
+            // FindObjectOfType pour éviter de récupérer un BossBehaviour de proxy visuel.
+            _boss = BossBehaviour.ActiveInstance;
 
             RegisterLootRevealCallbacks();
         }
@@ -654,7 +689,9 @@ namespace ChogZombies.Game
 
             if (_boss == null)
             {
-                _boss = FindObjectOfType<BossBehaviour>();
+                // Si aucune instance active n'est enregistrée, cela signifie que le boss
+                // logique n'existe plus dans la scène (défait ou non créé).
+                _boss = BossBehaviour.ActiveInstance;
             }
 
             if (_boss == null)
@@ -855,6 +892,13 @@ namespace ChogZombies.Game
             if (roll > bossLootDropChance)
             {
                 Debug.Log("Boss loot: no drop this time.");
+
+                var noLootUI = LootRevealUI.Instance;
+                if (noLootUI == null)
+                    noLootUI = FindObjectOfType<LootRevealUI>();
+                if (noLootUI != null)
+                    noLootUI.ShowNoLoot();
+
                 return;
             }
 
@@ -881,6 +925,13 @@ namespace ChogZombies.Game
             if (item == null)
             {
                 Debug.Log("Boss loot: table empty or no valid item.");
+
+                var noLootUI = LootRevealUI.Instance;
+                if (noLootUI == null)
+                    noLootUI = FindObjectOfType<LootRevealUI>();
+                if (noLootUI != null)
+                    noLootUI.ShowNoLoot();
+
                 return;
             }
 
@@ -1115,6 +1166,44 @@ namespace ChogZombies.Game
             lootReveal.OnEquipClicked += HandleLootRevealEquipClicked;
         }
 
+        void ConsumeAndApplyRunOnlyItems(MetaProgressionController meta, PlayerLootController loot)
+        {
+            if (meta == null || loot == null)
+                return;
+
+            var runOnlyItems = meta.GetEquippedRunOnlyItems();
+            if (runOnlyItems == null || runOnlyItems.Count == 0)
+                return;
+
+            bool consumedAny = false;
+            for (int i = 0; i < runOnlyItems.Count; i++)
+            {
+                var item = runOnlyItems[i];
+                if (item == null)
+                    continue;
+
+                loot.ApplyRunOnlyItem(item);
+                if (meta.ConsumeRunOnlyItem(item))
+                {
+                    consumedAny = true;
+                    Debug.Log($"[RunGameController] Consumed run-only item '{item.DisplayName}' for this run.");
+                }
+            }
+
+            if (consumedAny)
+            {
+                try
+                {
+                    var lootBackend = FindObjectOfType<LootBackendSync>();
+                    lootBackend?.PushForCurrentWallet();
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[RunGameController] Failed to push loot state after consuming run-only items: {e.Message}");
+                }
+            }
+        }
+
         void HandleLootRevealEquipClicked(LootItemDefinition item)
         {
             if (item == null)
@@ -1145,7 +1234,8 @@ namespace ChogZombies.Game
             {
                 if (meta.SetEquipped(item, false))
                 {
-                    lootController.TryUnequip(item);
+                    if (!item.IsRunOnly)
+                        lootController.TryUnequip(item);
                     // Pousser le nouvel état d'équipement vers le backend
                     try
                     {
@@ -1162,7 +1252,8 @@ namespace ChogZombies.Game
             {
                 if (meta.SetEquipped(item, true))
                 {
-                    lootController.TryEquip(item);
+                    if (!item.IsRunOnly)
+                        lootController.TryEquip(item);
                     // Pousser le nouvel état d'équipement vers le backend
                     try
                     {

@@ -328,14 +328,22 @@ namespace ChogZombies.LevelGen
             float bossEarlyEaseHp = Mathf.Lerp(0.75f, 1.0f, earlyRamp);
             float bossEarlyEaseDamage = Mathf.Lerp(0.85f, 1.0f, earlyRamp);
             float bossHpScale = 1.0f + 0.08f * curveK + 0.0035f * curveK * curveK;
-
             float bossDamageScale = 1.0f + 0.025f * curveK;
+
+            // Boost supplémentaire configurable après un certain niveau pour que la difficulté continue d'augmenter.
+            int lateStart = GameDifficultySettings.GetBossLateBoostStartLevelOrDefault();
+            int lateFull = Mathf.Max(lateStart + 1, GameDifficultySettings.GetBossLateBoostFullLevelOrDefault());
+            float bossLateMaxHp = GameDifficultySettings.GetBossLateHpMaxMultiplierOrDefault();
+            float bossLateMaxDamage = GameDifficultySettings.GetBossLateDamageMaxMultiplierOrDefault();
+            float lateRamp = Mathf.Clamp01((l - lateStart) / Mathf.Max(1f, lateFull - lateStart));
+            float bossLateHpBoost = Mathf.Lerp(1f, bossLateMaxHp, lateRamp);
+            float bossLateDamageBoost = Mathf.Lerp(1f, bossLateMaxDamage, lateRamp);
 
             boss.Pattern = pattern;
             float bossHpGlobal = GameDifficultySettings.GetBossHpMultiplierOrDefault();
             float bossDamageGlobal = GameDifficultySettings.GetBossDamageMultiplierOrDefault();
-            boss.Hp = Mathf.Max(1, Mathf.RoundToInt(BaseBossHp * bossHpScale * bossEarlyEaseHp * hpMultiplier * bossHpGlobal));
-            boss.Damage = Mathf.Max(1, Mathf.RoundToInt(BaseBossDamage * bossDamageScale * bossEarlyEaseDamage * damageMultiplier * bossDamageGlobal));
+            boss.Hp = Mathf.Max(1, Mathf.RoundToInt(BaseBossHp * bossHpScale * bossLateHpBoost * bossEarlyEaseHp * hpMultiplier * bossHpGlobal));
+            boss.Damage = Mathf.Max(1, Mathf.RoundToInt(BaseBossDamage * bossDamageScale * bossLateDamageBoost * bossEarlyEaseDamage * damageMultiplier * bossDamageGlobal));
         }
     }
 }

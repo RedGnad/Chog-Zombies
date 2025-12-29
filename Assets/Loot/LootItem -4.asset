@@ -16,8 +16,8 @@ MonoBehaviour:
   familyId: simple_gun
   displayName: simple gun
   description: a simple gun
-  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  icon: {fileID: 21300000, guid: e8135d3c5dcc248d2b3e884a708b638d, type: 3}
   rarity: 3
   effectType: 0
-  effectValue: 0.3
+  effectValue: 0.1
   dropWeight: 0.1

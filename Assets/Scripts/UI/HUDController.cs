@@ -58,7 +58,7 @@ namespace ChogZombies.UI
 
             if (_boss == null)
             {
-                _boss = FindObjectOfType<BossBehaviour>();
+                _boss = BossBehaviour.ActiveInstance ?? FindObjectOfType<BossBehaviour>();
             }
 
             if (_boss == null)

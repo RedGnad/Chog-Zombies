@@ -3,6 +3,7 @@ using ChogZombies.Combat;
 using ChogZombies.Player;
 using ChogZombies.Game;
 using ChogZombies.Effects;
+using ChogZombies.Loot;
 
 namespace ChogZombies.Enemies
 {
@@ -19,6 +20,7 @@ namespace ChogZombies.Enemies
         [SerializeField] int maxPowerReward = 1;
         [SerializeField] float goldDropChance = 0.5f;
         [SerializeField] int goldReward = 1;
+        [SerializeField] GameObject coinPickupPrefab;
 
         [Header("Chaser Movement")]
         [SerializeField] float lateralAlignSpeed = 0.8f;
@@ -34,6 +36,11 @@ namespace ChogZombies.Enemies
         float _fixedZ;
 
         public int EnemyCount => enemyCount;
+
+        public void SetCoinPickupPrefab(GameObject prefab)
+        {
+            coinPickupPrefab = prefab;
+        }
 
         public void Initialize(int count, int levelIndex)
         {
@@ -112,14 +119,26 @@ namespace ChogZombies.Enemies
                     PlayerCombatController.Main.AddPower(reward);
                 }
 
+                var rng = new System.Random(_goldRngSeed);
+
                 if (goldReward > 0 && goldDropChance > 0f)
                 {
-                    var rng = new System.Random(_goldRngSeed);
                     if (rng.NextDouble() < goldDropChance)
                     {
                         var run = FindObjectOfType<ChogZombies.Game.RunGameController>();
                         if (run != null)
                             run.AddGold(goldReward);
+                    }
+                }
+
+                float coinDropChance = RunMetaEffects.CoinDropChancePerEnemy;
+                if (coinDropChance > 0f && coinPickupPrefab != null)
+                {
+                    if (rng.NextDouble() < coinDropChance)
+                    {
+                        var pos = transform.position;
+                        Instantiate(coinPickupPrefab, pos, Quaternion.identity);
+                        Debug.Log($"[CoinDrop] EnemyChaserGroup '{name}' spawned a coin (chance={coinDropChance:P0}).");
                     }
                 }
 

@@ -3,6 +3,7 @@ using ChogZombies.Combat;
 using ChogZombies.Player;
 using ChogZombies.Game;
 using ChogZombies.Effects;
+using ChogZombies.Loot;
 
 namespace ChogZombies.Enemies
 {
@@ -19,6 +20,7 @@ namespace ChogZombies.Enemies
         [SerializeField] int maxPowerReward = 1;
         [SerializeField] float goldDropChance = 0.5f;
         [SerializeField] int goldReward = 1;
+        [SerializeField] GameObject coinPickupPrefab;
 
         [Header("Movement")]
         [SerializeField] bool enableSideMovement = true;
@@ -38,6 +40,11 @@ namespace ChogZombies.Enemies
         int _goldRngSeed;
 
         public int EnemyCount => enemyCount;
+
+        public void SetCoinPickupPrefab(GameObject prefab)
+        {
+            coinPickupPrefab = prefab;
+        }
 
         public void Initialize(int count)
         {
@@ -114,9 +121,10 @@ namespace ChogZombies.Enemies
                     PlayerCombatController.Main.AddPower(reward);
                 }
 
+                var rng = new System.Random(_goldRngSeed);
+
                 if (goldReward > 0 && goldDropChance > 0f)
                 {
-                    var rng = new System.Random(_goldRngSeed);
                     if (rng.NextDouble() < goldDropChance)
                     {
                         var run = FindObjectOfType<ChogZombies.Game.RunGameController>();
@@ -124,6 +132,18 @@ namespace ChogZombies.Enemies
                             run.AddGold(goldReward);
                     }
                 }
+
+                float coinDropChance = RunMetaEffects.CoinDropChancePerEnemy;
+                if (coinDropChance > 0f && coinPickupPrefab != null)
+                {
+                    if (rng.NextDouble() < coinDropChance)
+                    {
+                        var pos = transform.position;
+                        Instantiate(coinPickupPrefab, pos, Quaternion.identity);
+                        Debug.Log($"[CoinDrop] EnemyGroup '{name}' spawned a coin (chance={coinDropChance:P0}).");
+                    }
+                }
+
                 Destroy(gameObject);
             }
             else

@@ -159,7 +159,7 @@ namespace ChogZombies.UI
             }
             else
             {
-                text.text = $"{offer.DisplayName} ({shop.SlotCost} or)";
+                text.text = $"{offer.DisplayName} ({shop.SlotCost} gold)";
             }
         }
     }

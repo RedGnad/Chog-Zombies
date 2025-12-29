@@ -17,10 +17,12 @@ namespace ChogZombies.Loot
         [SerializeField] List<LootItemDefinition> items = new List<LootItemDefinition>();
         [SerializeField] RarityWeight[] rarityWeights =
         {
-            new RarityWeight{rarity = LootRarity.Common,    weight = 60f},
-            new RarityWeight{rarity = LootRarity.Rare,      weight = 25f},
-            new RarityWeight{rarity = LootRarity.Epic,      weight = 10f},
-            new RarityWeight{rarity = LootRarity.Legendary, weight = 5f},
+            new RarityWeight{rarity = LootRarity.Common,    weight = 50f},
+            new RarityWeight{rarity = LootRarity.Uncommon,  weight = 25f},
+            new RarityWeight{rarity = LootRarity.Rare,      weight = 15f},
+            new RarityWeight{rarity = LootRarity.Epic,      weight = 7f},
+            new RarityWeight{rarity = LootRarity.Legendary, weight = 3f},
+            new RarityWeight{rarity = LootRarity.Mythic,    weight = 1f},
         };
 
         public LootItemDefinition RollItem(System.Random rng)

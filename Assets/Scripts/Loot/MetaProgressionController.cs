@@ -25,22 +25,7 @@ namespace ChogZombies.Loot
         public IReadOnlyList<LootItemDefinition> AllLootItems => allLootItems;
 
         public LootItemDefinition LastAcquiredItem => _lastAcquired;
-        public IReadOnlyCollection<LootItemDefinition> EquippedItems
-        {
-            get
-            {
-                var result = new List<LootItemDefinition>();
-                for (int i = 0; i < allLootItems.Count; i++)
-                {
-                    var item = allLootItems[i];
-                    if (item == null)
-                        continue;
-                    if (_equipped.Contains(GetKey(item)))
-                        result.Add(item);
-                }
-                return result;
-            }
-        }
+        public IReadOnlyCollection<LootItemDefinition> EquippedItems => GetEquippedItemsInternal(includeRunOnly: true);
 
         public List<LootItemDefinition> GetOwnedItems()
         {
@@ -93,12 +78,16 @@ namespace ChogZombies.Loot
                 if (!_owned.Contains(candidateKey))
                     continue;
 
-                if (bestOwnedInFamily == null || candidate.Rarity > bestOwnedInFamily.Rarity)
+                if (bestOwnedInFamily == null
+                    || LootItemDefinition.GetRarityRank(candidate.Rarity) > LootItemDefinition.GetRarityRank(bestOwnedInFamily.Rarity))
+                {
                     bestOwnedInFamily = candidate;
+                }
             }
 
             // Si on possède déjà un tier de rareté >=, on ignore le drop (pas de nouvel item)
-            if (bestOwnedInFamily != null && bestOwnedInFamily.Rarity >= item.Rarity)
+            if (bestOwnedInFamily != null
+                && LootItemDefinition.GetRarityRank(bestOwnedInFamily.Rarity) >= LootItemDefinition.GetRarityRank(item.Rarity))
             {
                 Debug.Log($"[Meta] Loot '{item.DisplayName}' ignoré : tier existant plus rare ou égal déjà possédé dans la famille '{family}'.");
                 return false;
@@ -237,8 +226,53 @@ namespace ChogZombies.Loot
                     continue;
 
                 if (_equipped.Contains(GetKey(item)))
+                {
+                    if (item.IsRunOnly)
+                        continue;
                     loot.TryEquip(item);
+                }
             }
+        }
+
+        public List<LootItemDefinition> GetEquippedRunOnlyItems()
+        {
+            return GetEquippedItemsInternal(includeRunOnly: true, runOnlyFilter: true);
+        }
+
+        public bool ConsumeRunOnlyItem(LootItemDefinition item)
+        {
+            if (item == null || !item.IsRunOnly)
+                return false;
+
+            string key = GetKey(item);
+            bool removedOwned = _owned.Remove(key);
+            bool removedEquipped = _equipped.Remove(key);
+
+            if (removedOwned)
+                Save();
+            if (removedEquipped)
+                SaveEquipped();
+            return removedOwned || removedEquipped;
+        }
+
+        List<LootItemDefinition> GetEquippedItemsInternal(bool includeRunOnly, bool runOnlyFilter = false)
+        {
+            var result = new List<LootItemDefinition>();
+            for (int i = 0; i < allLootItems.Count; i++)
+            {
+                var item = allLootItems[i];
+                if (item == null)
+                    continue;
+
+                if (runOnlyFilter && !item.IsRunOnly)
+                    continue;
+                if (!includeRunOnly && item.IsRunOnly)
+                    continue;
+
+                if (_equipped.Contains(GetKey(item)))
+                    result.Add(item);
+            }
+            return result;
         }
 
         void Load()

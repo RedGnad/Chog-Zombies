@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b702b7012e5454f908b1b9cbed671436, type: 3}
+  m_Name: LootItem smart contract 3
+  m_EditorClassIdentifier: Assembly-CSharp::ChogZombies.Loot.LootItemDefinition
+  id: 4
+  familyId: smart-contract
+  displayName: smart contract
+  description: a weird DEFI contract
+  icon: {fileID: 21300000, guid: 282c734af7ca247629f848107d0cbc59, type: 3}
+  rarity: 5
+  effectType: 4
+  effectValue: 0.2
+  dropWeight: 0.1
+  runOnly: 0

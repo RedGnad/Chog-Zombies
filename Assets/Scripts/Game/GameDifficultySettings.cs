@@ -20,6 +20,10 @@ namespace ChogZombies.Game
         [SerializeField] float bossDamageMultiplier = 1f;
         [SerializeField] float bossLevelCurveExponent = 1f;
         [SerializeField] float bossAttackIntervalMultiplier = 1f;
+        [SerializeField] int bossLateBoostStartLevel = 10;
+        [SerializeField] int bossLateBoostFullLevel = 20;
+        [SerializeField] float bossLateHpMaxMultiplier = 1.18f;
+        [SerializeField] float bossLateDamageMaxMultiplier = 1.12f;
 
         public int StartingSoldiersOverride => startingSoldiersOverride;
         public float EnemyHpMultiplier => enemyHpMultiplier;
@@ -30,6 +34,10 @@ namespace ChogZombies.Game
         public float PlayerPowerDamageMultiplierFactor => playerPowerDamageMultiplierFactor;
         public float PlayerPowerDamageExponent => playerPowerDamageExponent;
         public float BossAttackIntervalMultiplier => bossAttackIntervalMultiplier;
+        public int BossLateBoostStartLevel => bossLateBoostStartLevel;
+        public int BossLateBoostFullLevel => bossLateBoostFullLevel;
+        public float BossLateHpMaxMultiplier => bossLateHpMaxMultiplier;
+        public float BossLateDamageMaxMultiplier => bossLateDamageMaxMultiplier;
 
         void Awake()
         {
@@ -103,6 +111,33 @@ namespace ChogZombies.Game
         {
             var s = Instance;
             return s == null ? 1f : Mathf.Max(0.05f, s.bossLevelCurveExponent);
+        }
+
+        public static int GetBossLateBoostStartLevelOrDefault()
+        {
+            var s = Instance;
+            return s == null ? 10 : Mathf.Max(1, s.bossLateBoostStartLevel);
+        }
+
+        public static int GetBossLateBoostFullLevelOrDefault()
+        {
+            var s = Instance;
+            int start = GetBossLateBoostStartLevelOrDefault();
+            if (s == null)
+                return Mathf.Max(start + 1, 20);
+            return Mathf.Max(start + 1, s.bossLateBoostFullLevel);
+        }
+
+        public static float GetBossLateHpMaxMultiplierOrDefault()
+        {
+            var s = Instance;
+            return s == null ? 1.18f : Mathf.Max(1f, s.bossLateHpMaxMultiplier);
+        }
+
+        public static float GetBossLateDamageMaxMultiplierOrDefault()
+        {
+            var s = Instance;
+            return s == null ? 1.12f : Mathf.Max(1f, s.bossLateDamageMaxMultiplier);
         }
 
         public static float EvaluateEnemyLevelCurveK(int levelIndex)

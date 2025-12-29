@@ -13,6 +13,7 @@ namespace ChogZombies.Enemies
         [Header("Boss Fight")]
         [SerializeField] float attackInterval = 0.5f;
         [SerializeField] float damageToSoldiersFactor = 0.3f;
+        [SerializeField] float engageDistance = 12f;
 
         [Header("Animation")]
         [SerializeField] Animator animator;
@@ -26,11 +27,30 @@ namespace ChogZombies.Enemies
         float _attackTimer;
         float _effectiveAttackInterval;
         PlayerCombatController _player;
-        bool _attackAnimQueued;
-        float _attackLeadTimeEffective;
+
+        static BossBehaviour _activeInstance;
+
+        public static BossBehaviour ActiveInstance => _activeInstance;
 
         public int CurrentHp => _currentHp;
         public int MaxHp => maxHp;
+        public float EngageDistance
+        {
+            get => engageDistance;
+            private set => engageDistance = Mathf.Max(0f, value);
+        }
+
+        void Awake()
+        {
+            if (animator == null)
+                animator = GetComponentInChildren<Animator>();
+        }
+
+        void OnDestroy()
+        {
+            if (_activeInstance == this)
+                _activeInstance = null;
+        }
 
         public void Initialize(BossData data)
         {
@@ -38,7 +58,16 @@ namespace ChogZombies.Enemies
             maxHp = data.Hp;
             _currentHp = maxHp;
             _effectiveAttackInterval = Mathf.Max(0.05f, attackInterval);
-            _attackLeadTimeEffective = Mathf.Min(attackAnimLeadTime, _effectiveAttackInterval);
+            // Le télégraphe doit durer la longueur complète du clip d'attaque,
+            // bornée par l'intervalle effectif.
+            _activeInstance = this;
+
+            if (_data != null)
+            {
+                float factor = Mathf.Max(0.01f, damageToSoldiersFactor);
+                int soldiersPerHit = Mathf.Max(1, Mathf.RoundToInt(_data.Damage * factor));
+                Debug.Log($"[BossInit] level={Game.RunGameController.CurrentLevelIndex} bossHp={maxHp} bossDamage={_data.Damage} soldiersPerHit={soldiersPerHit}");
+            }
         }
 
         public void TakeDamage(float damage)
@@ -61,7 +90,11 @@ namespace ChogZombies.Enemies
         void Update()
         {
             if (!_fightStarted)
-                return;
+            {
+                TryAutoEngage();
+                if (!_fightStarted)
+                    return;
+            }
 
             if (_player == null)
                 return;
@@ -73,29 +106,47 @@ namespace ChogZombies.Enemies
                 Debug.Log("Run failed: player defeated by boss.");
                 return;
             }
-
+            // 2) Gérer l'intervalle entre le début de deux télégraphes
             _attackTimer += Time.deltaTime;
             float interval = _effectiveAttackInterval;
-
-            float lead = Mathf.Clamp(_attackLeadTimeEffective, 0f, interval);
-            if (!_attackAnimQueued && animator != null && lead > 0f && _attackTimer >= interval - lead)
-            {
-                if (!string.IsNullOrEmpty(attackTriggerName))
-                    animator.SetTrigger(attackTriggerName);
-                _attackAnimQueued = true;
-            }
-
             if (_attackTimer >= interval)
             {
                 _attackTimer -= interval;
-                _attackAnimQueued = false;
-
-                float factor = Mathf.Max(0.01f, damageToSoldiersFactor);
-                int dmg = Mathf.Max(1, Mathf.RoundToInt(_data.Damage * factor));
-                _player.TakeSoldierDamage(dmg);
-
-                CameraShakeController.TriggerShake(0.06f, 0.15f);
+                TriggerAttackAnimation();
             }
+        }
+
+        void TriggerAttackAnimation()
+        {
+            Debug.Log($"[BossAttack] TriggerAttackAnimation at t={Time.time:F3}, interval={_effectiveAttackInterval:F3}");
+            if (animator != null && !string.IsNullOrEmpty(attackTriggerName))
+            {
+                animator.SetTrigger(attackTriggerName);
+            }
+        }
+
+        public void OnAttackAnimationImpact()
+        {
+            Debug.Log($"[BossAttack] OnAttackAnimationImpact (Animation Event) at t={Time.time:F3}");
+
+            var boss = _activeInstance ?? this;
+            if (boss == null)
+                return;
+
+            if (!boss._fightStarted)
+                return;
+
+            if (boss._player == null || !boss._player.IsAlive)
+                return;
+
+            if (boss._data == null)
+                return;
+
+            float factor = Mathf.Max(0.01f, boss.damageToSoldiersFactor);
+            int dmg = Mathf.Max(1, Mathf.RoundToInt(boss._data.Damage * factor));
+            boss._player.TakeSoldierDamage(dmg);
+
+            CameraShakeController.TriggerShake(0.06f, 0.15f);
         }
 
         void OnTriggerEnter(Collider other)
@@ -111,33 +162,67 @@ namespace ChogZombies.Enemies
                 return;
 
             var player = other.GetComponentInParent<PlayerCombatController>();
-            if (player != null)
+            if (player == null)
+                return;
+
+            if (!_fightStarted)
             {
-                _fightStarted = true;
-                _player = player;
-                _attackTimer = 0f;
-                float speedMultiplier = GameDifficultySettings.GetBossAttackIntervalMultiplierOrDefault();
-                _effectiveAttackInterval = Mathf.Max(0.05f, attackInterval / speedMultiplier);
-
-                _attackLeadTimeEffective = Mathf.Min(attackAnimLeadTime, _effectiveAttackInterval);
-
-                if (animator != null && attackAnimDuration > 0.01f && _attackLeadTimeEffective > 0.01f)
-                {
-                    float targetDuration = _attackLeadTimeEffective;
-                    float speedFactor = attackAnimDuration / targetDuration;
-                    animator.speed = speedFactor;
-                }
-
-                _attackAnimQueued = false;
-
-                var runner = player.GetComponent<ChogZombies.Player.AutoRunner>();
-                if (runner != null)
-                {
-                    runner.Stop();
-                }
-
-                Debug.Log("Boss fight started: scrolling stopped.");
+                TryStartFight(player, true);
             }
+            else
+            {
+                StopRunner(player);
+            }
+        }
+
+        void TryAutoEngage()
+        {
+            if (engageDistance <= 0f)
+                return;
+
+            var player = _player != null ? _player : PlayerCombatController.Main;
+            if (player == null)
+                return;
+
+            float distanceSqr = (player.transform.position - transform.position).sqrMagnitude;
+            if (distanceSqr <= engageDistance * engageDistance)
+            {
+                TryStartFight(player, false);
+            }
+        }
+
+        void TryStartFight(PlayerCombatController player, bool stopRunner)
+        {
+            if (player == null || _fightStarted)
+                return;
+
+            _fightStarted = true;
+            _player = player;
+            _attackTimer = 0f;
+            float speedMultiplier = GameDifficultySettings.GetBossAttackIntervalMultiplierOrDefault();
+            _effectiveAttackInterval = Mathf.Max(0.05f, attackInterval / speedMultiplier);
+            if (animator != null && attackAnimDuration > 0.01f)
+                TriggerAttackAnimation();
+
+            if (stopRunner)
+                StopRunner(player);
+
+            Debug.Log("Boss fight started.");
+        }
+
+        void StopRunner(PlayerCombatController player)
+        {
+            if (player == null)
+                return;
+
+            var runner = player.GetComponent<ChogZombies.Player.AutoRunner>();
+            if (runner != null)
+                runner.Stop();
+        }
+
+        public void SetEngageDistance(float distance)
+        {
+            EngageDistance = distance;
         }
     }
 }

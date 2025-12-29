@@ -1,5 +1,6 @@
 using UnityEngine;
 using ChogZombies.CameraSystem;
+using ChogZombies.Loot;
 
 namespace ChogZombies.LevelGen
 {
@@ -24,6 +25,8 @@ namespace ChogZombies.LevelGen
         [SerializeField] Vector3 bossSize = new Vector3(3f, 3f, 3f);
         [SerializeField] Vector3 bossVisualOffset = Vector3.zero;
         [SerializeField] float bossVisualScale = 1f;
+        [Header("Boss Behaviour")]
+        [SerializeField] float bossEngageDistance = 12f;
 
         [Header("Default Materials (no prefab)")]
         [SerializeField] Material gateBaseMaterial;
@@ -41,6 +44,7 @@ namespace ChogZombies.LevelGen
         [SerializeField] int minCoinsPerLevel = 2;
         [SerializeField] int maxCoinsPerLevel = 5;
         [SerializeField] float coinYOffset = 0f;
+        [SerializeField] float minCoinZSpacing = 2f;
 
         [Header("Visual Prefabs (Child)")]
         [SerializeField] GameObject gateVisualPrefab;
@@ -239,28 +243,25 @@ namespace ChogZombies.LevelGen
             if (root == null || visualPrefab == null)
                 return null;
 
+            Debug.Log($"[BossVisual] AttachBossVisualChild root={root.name}, prefab={(visualPrefab != null ? visualPrefab.name : "NULL")}");
+
             var v = Instantiate(visualPrefab, root.transform, false);
             v.name = "Visual";
 
             StripSceneControlComponents(v);
             DisablePhysicsComponents(v);
-            
+
             var t = v.transform;
-            var originalRotation = t.localRotation;
 
+            // Position locale centrée sur le root du boss, puis offset optionnel.
             t.localPosition = Vector3.zero;
-            t.localRotation = Quaternion.identity;
-            t.localScale = Vector3.one;
 
-            FitVisualToUnitBox(t);
-
+            // Appliquer un scale global simple si demandé, en conservant le scale du prefab comme base.
             if (Mathf.Abs(bossVisualScale - 1f) > 0.0001f)
             {
                 float s = Mathf.Max(0.01f, bossVisualScale);
                 t.localScale = t.localScale * s;
             }
-
-            t.localRotation = originalRotation;
 
             if (bossVisualOffset != Vector3.zero)
             {
@@ -369,16 +370,16 @@ namespace ChogZombies.LevelGen
             CreateEnemyGroup(enemyCount, new Vector3(enemyLaneOffsetX, enemySizeBase.y * 0.5f, z));
         }
 
-        public void BuildWithParams(int newLevelIndex, int newSeed)
+        public float BuildWithParams(int newLevelIndex, int newSeed)
         {
             levelIndex = newLevelIndex;
             seed = newSeed;
 
             var levelData = LevelGenerator.Generate(levelIndex, seed);
-            BuildLevel(levelData);
+            return BuildLevel(levelData);
         }
 
-        void BuildLevel(LevelData level)
+        float BuildLevel(LevelData level)
         {
             ClearGateLabels();
 
@@ -436,6 +437,8 @@ namespace ChogZombies.LevelGen
             CreateBoss(level.Boss, new Vector3(0f, bossSize.y * 0.5f, bossZ));
 
             SpawnCoins(level);
+
+            return transform.TransformPoint(new Vector3(0f, 0f, bossZ)).z;
         }
 
         void SpawnCoins(LevelData level)
@@ -468,14 +471,58 @@ namespace ChogZombies.LevelGen
             int biasedIndex = Mathf.Min(rawA, rawB); // 0..range-1
             int coinCount = minCoins + biasedIndex;
 
+            float expectedExtraCoins = RunMetaEffects.ExpectedExtraCoinsOnMap;
+            if (expectedExtraCoins > 0f)
+            {
+                int extraWhole = Mathf.FloorToInt(expectedExtraCoins);
+                float extraFraction = expectedExtraCoins - extraWhole;
+                if (extraFraction > 0f && rng.NextDouble() < extraFraction)
+                {
+                    extraWhole++;
+                }
+                coinCount = Mathf.Max(0, coinCount + extraWhole);
+            }
+
+            float minSpacing = Mathf.Max(0f, minCoinZSpacing);
+            float[] usedZ = minSpacing > 0f && coinCount > 0 ? new float[coinCount] : null;
+            int usedCount = 0;
+
             for (int i = 0; i < coinCount; i++)
             {
-                int segmentIndex = rng.Next(0, segmentCount);
+                const int maxAttempts = 8;
+                int chosenSegmentIndex = 0;
+                float chosenZ = 0f;
 
-                float baseZ = segmentIndex * segmentSpacing;
-                // Garder une marge à l'intérieur du segment pour éviter les overlaps extrêmes
-                float localZOffset = (float)rng.NextDouble() * (segmentSpacing * 0.8f);
-                float z = baseZ + localZOffset;
+                for (int attempt = 0; attempt < maxAttempts; attempt++)
+                {
+                    int segmentIndex = rng.Next(0, segmentCount);
+
+                    float baseZ = segmentIndex * segmentSpacing;
+                    // Garder une marge à l'intérieur du segment pour éviter les overlaps extrêmes
+                    float localZOffset = (float)rng.NextDouble() * (segmentSpacing * 0.8f);
+                    float candidateZ = baseZ + localZOffset;
+
+                    bool tooClose = false;
+                    if (minSpacing > 0f && usedZ != null)
+                    {
+                        for (int j = 0; j < usedCount; j++)
+                        {
+                            if (Mathf.Abs(candidateZ - usedZ[j]) < minSpacing)
+                            {
+                                tooClose = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    chosenSegmentIndex = segmentIndex;
+                    chosenZ = candidateZ;
+
+                    if (!tooClose)
+                        break;
+                }
+
+                float z = chosenZ;
 
                 // Largeur du couloir approximée par gateOffsetX
                 float halfWidth = Mathf.Max(0.5f, gateOffsetX);
@@ -486,8 +533,13 @@ namespace ChogZombies.LevelGen
                 float y = segmentEnvironmentYOffset + coinYOffset;
 
                 var coin = Instantiate(coinPrefab, transform);
-                coin.name = $"Coin_{i}_seg{segmentIndex}";
+                coin.name = $"Coin_{i}_seg{chosenSegmentIndex}";
                 coin.transform.localPosition = new Vector3(x, y, z);
+
+                if (minSpacing > 0f && usedZ != null && usedCount < usedZ.Length)
+                {
+                    usedZ[usedCount++] = z;
+                }
             }
         }
 
@@ -643,6 +695,10 @@ namespace ChogZombies.LevelGen
             {
                 enemy = go.AddComponent<Enemies.EnemyGroupBehaviour>();
             }
+            if (coinPrefab != null)
+            {
+                enemy.SetCoinPickupPrefab(coinPrefab);
+            }
             enemy.Initialize(enemyCount, levelIndex);
 
             var col = go.GetComponent<Collider>();
@@ -722,6 +778,10 @@ namespace ChogZombies.LevelGen
             {
                 chaser = go.AddComponent<Enemies.EnemyChaserGroupBehaviour>();
             }
+            if (coinPrefab != null)
+            {
+                chaser.SetCoinPickupPrefab(coinPrefab);
+            }
             chaser.Initialize(enemyCount, levelIndex);
 
             var col = go.GetComponent<Collider>();
@@ -743,6 +803,7 @@ namespace ChogZombies.LevelGen
         void CreateBoss(BossData boss, Vector3 position)
         {
             GameObject go;
+            Debug.Log($"[BossVisual] CreateBoss called. bossVisualPrefab={(bossVisualPrefab != null ? bossVisualPrefab.name : "NULL")}, bossPrefab={(bossPrefab != null ? bossPrefab.name : "NULL")}");
             if (bossVisualPrefab != null)
             {
                 go = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -781,6 +842,10 @@ namespace ChogZombies.LevelGen
                     renderer.enabled = false;
 
                 var visualGo = AttachBossVisualChild(go, bossVisualPrefab);
+                if (visualGo == null)
+                {
+                    Debug.LogError("[BossVisual] AttachBossVisualChild returned null even though bossVisualPrefab was not null.");
+                }
                 if (visualGo != null && tintBossPrefab)
                     ApplyTintToHierarchy(visualGo, bossColor);
             }
@@ -808,6 +873,7 @@ namespace ChogZombies.LevelGen
                 bossBehaviour = go.AddComponent<Enemies.BossBehaviour>();
             }
             bossBehaviour.Initialize(boss);
+            bossBehaviour.SetEngageDistance(bossEngageDistance);
 
             var col = go.GetComponent<Collider>();
             if (col == null)

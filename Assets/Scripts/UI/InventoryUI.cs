@@ -35,9 +35,11 @@ namespace ChogZombies.UI
 
         [Header("Rarity Colors")]
         [SerializeField] Color commonColor = new Color(0.7f, 0.7f, 0.7f);
+        [SerializeField] Color uncommonColor = new Color(0.4f, 0.8f, 0.4f);
         [SerializeField] Color rareColor = new Color(0.2f, 0.5f, 1f);
         [SerializeField] Color epicColor = new Color(0.6f, 0.2f, 0.8f);
         [SerializeField] Color legendaryColor = new Color(1f, 0.7f, 0.2f);
+        [SerializeField] Color mythicColor = new Color(1f, 0.3f, 0.9f);
         [SerializeField] Color lockedColor = new Color(0.3f, 0.3f, 0.3f, 0.5f);
 
         [Header("Animation")]
@@ -189,7 +191,7 @@ namespace ChogZombies.UI
 
                     if (_meta.IsOwned(candidate))
                     {
-                        if (bestOwned == null || candidate.Rarity > bestOwned.Rarity)
+                        if (bestOwned == null || LootItemDefinition.GetRarityRank(candidate.Rarity) > LootItemDefinition.GetRarityRank(bestOwned.Rarity))
                             bestOwned = candidate;
                     }
                 }
@@ -224,7 +226,7 @@ namespace ChogZombies.UI
                     slot = slotGO.AddComponent<InventorySlot>();
 
                 bool isOwned = bestOwned != null;
-                bool isEquipped = isOwned && _meta.IsEquipped(bestOwned);
+                bool isEquipped = isOwned && bestOwned != null && _meta.IsEquipped(bestOwned);
                 Debug.Log($"[InventoryUI]   Slot for family '{kvp.Key}' using '{displayItem.DisplayName}' (owned={isOwned}, icon={(displayItem.Icon != null ? "yes" : "no")})");
                 slot.Setup(displayItem, isOwned, isEquipped, GetRarityColor(displayItem.Rarity), lockedColor);
                 slot.OnClicked += OnSlotClicked;
@@ -270,12 +272,15 @@ namespace ChogZombies.UI
                     if (_meta.SetEquipped(item, targetEquipped))
                     {
                         toggled = true;
-                        if (targetEquipped)
-                            loot.TryEquip(item);
-                        else
-                            loot.TryUnequip(item);
-
                         isEquipped = targetEquipped;
+
+                        if (!item.IsRunOnly)
+                        {
+                            if (targetEquipped)
+                                loot.TryEquip(item);
+                            else
+                                loot.TryUnequip(item);
+                        }
 
                         // Pousser le nouvel état d'équipement vers le backend (owned/equipped)
                         try
@@ -287,6 +292,9 @@ namespace ChogZombies.UI
                         {
                             Debug.LogWarning($"[InventoryUI] Failed to push loot state to backend: {e.Message}");
                         }
+
+                        if (_slotLookup.TryGetValue(item, out var slot) && slot != null)
+                            slot.SetEquipped(isEquipped && isOwned);
                     }
                 }
             }
@@ -401,32 +409,54 @@ namespace ChogZombies.UI
                 LootEffectType.DamageMultiplier => $"+{percent:F0}% Damage",
                 LootEffectType.FireRateMultiplier => $"+{percent:F0}% Fire rate",
                 LootEffectType.ArmorDamageReduction => $"-{percent:F0}% Damage taken",
+                LootEffectType.CoinDropChanceOnKill => $"+{percent:F0}% coin drop chance",
+                LootEffectType.ExtraCoinsOnMap => $"+{percent:F0}% extra coins on map",
+                LootEffectType.StartRunPowerBoost => $"+{percent:F0}% start power",
+                LootEffectType.PersistentStartPower => $"+{percent:F0}% permanent start power",
                 _ => $"+{percent:F0}%"
             };
         }
 
         Color GetRarityColor(LootRarity rarity)
         {
-            return rarity switch
+            switch (rarity)
             {
-                LootRarity.Common => commonColor,
-                LootRarity.Rare => rareColor,
-                LootRarity.Epic => epicColor,
-                LootRarity.Legendary => legendaryColor,
-                _ => commonColor
-            };
+                case LootRarity.Common:
+                    return commonColor;
+                case LootRarity.Uncommon:
+                    return uncommonColor;
+                case LootRarity.Rare:
+                    return rareColor;
+                case LootRarity.Epic:
+                    return epicColor;
+                case LootRarity.Legendary:
+                    return legendaryColor;
+                case LootRarity.Mythic:
+                    return mythicColor;
+                default:
+                    return commonColor;
+            }
         }
 
         string GetRarityDisplayName(LootRarity rarity)
         {
-            return rarity switch
+            switch (rarity)
             {
-                LootRarity.Common => "COMMON",
-                LootRarity.Rare => "RARE",
-                LootRarity.Epic => "EPIC",
-                LootRarity.Legendary => "LEGENDARY",
-                _ => "COMMON"
-            };
+                case LootRarity.Common:
+                    return "COMMON";
+                case LootRarity.Uncommon:
+                    return "UNCOMMON";
+                case LootRarity.Rare:
+                    return "RARE";
+                case LootRarity.Epic:
+                    return "EPIC";
+                case LootRarity.Legendary:
+                    return "LEGENDARY";
+                case LootRarity.Mythic:
+                    return "MYTHIC";
+                default:
+                    return "COMMON";
+            }
         }
 
         void HandleEquipmentChanged(LootItemDefinition item, bool equipped)
