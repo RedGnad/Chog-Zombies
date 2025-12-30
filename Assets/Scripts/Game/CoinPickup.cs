@@ -9,6 +9,8 @@ namespace ChogZombies.Game
     {
         [SerializeField] int goldAmount = 1;
         [SerializeField] float rotationSpeed = 90f;
+        [SerializeField] AudioClip pickupSfx;
+        [SerializeField, Range(0f, 1f)] float pickupSfxVolume = 1f;
 
         void Reset()
         {
@@ -40,6 +42,11 @@ namespace ChogZombies.Game
             if (goldAmount > 0)
             {
                 run.AddGold(goldAmount);
+            }
+
+            if (pickupSfx != null)
+            {
+                AudioSource.PlayClipAtPoint(pickupSfx, transform.position, Mathf.Clamp01(pickupSfxVolume));
             }
 
             Destroy(gameObject);

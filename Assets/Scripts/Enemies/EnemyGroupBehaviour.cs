@@ -21,6 +21,9 @@ namespace ChogZombies.Enemies
         [SerializeField] float goldDropChance = 0.5f;
         [SerializeField] int goldReward = 1;
         [SerializeField] GameObject coinPickupPrefab;
+        [SerializeField] GameObject deathVfxPrefab;
+        [SerializeField] AudioClip deathSfxClip;
+        [SerializeField, Range(0f, 1f)] float deathSfxVolume = 1f;
 
         [Header("Movement")]
         [SerializeField] bool enableSideMovement = true;
@@ -38,12 +41,28 @@ namespace ChogZombies.Enemies
         float _effectiveSpeed;
         float _laneCenterX;
         int _goldRngSeed;
+        float _spikeAuraAccumulatedDamage;
 
         public int EnemyCount => enemyCount;
 
         public void SetCoinPickupPrefab(GameObject prefab)
         {
             coinPickupPrefab = prefab;
+        }
+
+        public void SetDeathVfxPrefab(GameObject prefab)
+        {
+            deathVfxPrefab = prefab;
+        }
+
+        public void SetDeathSfxClip(AudioClip clip)
+        {
+            deathSfxClip = clip;
+        }
+
+        public void SetDeathSfxVolume(float volume)
+        {
+            deathSfxVolume = Mathf.Clamp01(volume);
         }
 
         public void Initialize(int count)
@@ -94,13 +113,51 @@ namespace ChogZombies.Enemies
 
         void Update()
         {
-            if (!enableSideMovement)
+            if (enableSideMovement)
+            {
+                float xOffset = Mathf.Sin(Time.time * _effectiveSpeed + _phase) * _effectiveAmplitude;
+                var pos = _basePosition;
+                pos.x = _laneCenterX + xOffset;
+                transform.position = pos;
+            }
+
+            ApplySpikeAuraDamage();
+        }
+
+        void ApplySpikeAuraDamage()
+        {
+            var player = PlayerCombatController.Main;
+            if (player == null)
                 return;
 
-            float xOffset = Mathf.Sin(Time.time * _effectiveSpeed + _phase) * _effectiveAmplitude;
-            var pos = _basePosition;
-            pos.x = _laneCenterX + xOffset;
-            transform.position = pos;
+            float radius;
+            if (!player.TryGetActiveSpikeAuraRadius(out radius))
+                return;
+
+            float auraDps = Mathf.Max(0f, RunMetaEffects.SpikeAuraDamagePerSecond);
+            if (auraDps <= 0f)
+                return;
+
+            Vector3 center = player.transform.position;
+            Vector3 pos = transform.position;
+            float radiusSqr = radius * radius;
+            float distSqr = (pos - center).sqrMagnitude;
+            if (distSqr > radiusSqr)
+                return;
+
+            _spikeAuraAccumulatedDamage += auraDps * Time.deltaTime;
+            int dmgInt = Mathf.FloorToInt(_spikeAuraAccumulatedDamage);
+            if (dmgInt <= 0)
+                return;
+
+            _spikeAuraAccumulatedDamage -= dmgInt;
+            TakeDamage(dmgInt);
+
+            if (player.DebugSpikeAuraHits)
+            {
+                float dist = Mathf.Sqrt(distSqr);
+                Debug.Log($"[SpikeAura] EnemyGroup '{name}' hit for {dmgInt} (radius={radius:F2}, dist={dist:F2}, dps={auraDps:F2})");
+            }
         }
 
         public void TakeDamage(float damage)
@@ -142,6 +199,21 @@ namespace ChogZombies.Enemies
                         Instantiate(coinPickupPrefab, pos, Quaternion.identity);
                         Debug.Log($"[CoinDrop] EnemyGroup '{name}' spawned a coin (chance={coinDropChance:P0}).");
                     }
+                }
+
+                if (deathVfxPrefab != null)
+                {
+                    var vfx = Instantiate(deathVfxPrefab, transform.position, Quaternion.identity);
+                    var ps = vfx.GetComponent<ParticleSystem>();
+                    if (ps != null)
+                        Destroy(vfx, ps.main.duration + ps.main.startLifetime.constantMax);
+                    else
+                        Destroy(vfx, 2f);
+                }
+                
+                if (deathSfxClip != null)
+                {
+                    AudioSource.PlayClipAtPoint(deathSfxClip, transform.position, deathSfxVolume);
                 }
 
                 Destroy(gameObject);

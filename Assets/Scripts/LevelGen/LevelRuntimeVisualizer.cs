@@ -52,6 +52,19 @@ namespace ChogZombies.LevelGen
         [SerializeField] GameObject chaserEnemyVisualPrefab;
         [SerializeField] GameObject bossVisualPrefab;
 
+        [Header("Death VFX")]
+        [SerializeField] GameObject enemyDeathVfxPrefab;
+        [SerializeField] GameObject chaserDeathVfxPrefab;
+        [SerializeField] GameObject bossDeathVfxPrefab;
+
+        [Header("Death SFX")]
+        [SerializeField] AudioClip enemyDeathSfx;
+        [SerializeField] AudioClip chaserDeathSfx;
+        [SerializeField] AudioClip bossDeathSfx;
+        [SerializeField, Range(0f, 1f)] float enemyDeathSfxVolume = 1f;
+        [SerializeField, Range(0f, 1f)] float chaserDeathSfxVolume = 1f;
+        [SerializeField, Range(0f, 1f)] float bossDeathSfxVolume = 1f;
+
         [Header("Enemy Visual Adjustments")]
         [SerializeField] bool normalizeEnemyVisual = true;
         [SerializeField] Vector3 enemyVisualOffset = Vector3.zero;
@@ -68,6 +81,9 @@ namespace ChogZombies.LevelGen
         [SerializeField] bool tintGatePrefab = true;
         [SerializeField] bool tintEnemyPrefab = false;
         [SerializeField] bool tintBossPrefab = true;
+
+        [Header("Layers")]
+        [SerializeField] string enemyLayerName = "Enemies";
 
         Transform _gateLabelsRoot;
 
@@ -169,6 +185,20 @@ namespace ChogZombies.LevelGen
             var rbs = go.GetComponentsInChildren<Rigidbody>(true);
             for (int i = 0; i < rbs.Length; i++)
                 Destroy(rbs[i]);
+        }
+
+        static void SetLayerRecursively(Transform root, int layer)
+        {
+            if (root == null)
+                return;
+
+            root.gameObject.layer = layer;
+            int childCount = root.childCount;
+            for (int i = 0; i < childCount; i++)
+            {
+                var child = root.GetChild(i);
+                SetLayerRecursively(child, layer);
+            }
         }
 
         static Bounds ComputeHierarchyBoundsInLocalSpace(Transform root, Renderer[] renderers)
@@ -770,6 +800,17 @@ namespace ChogZombies.LevelGen
             }
             enemy.Initialize(enemyCount, levelIndex);
 
+            if (enemyDeathVfxPrefab != null)
+            {
+                enemy.SetDeathVfxPrefab(enemyDeathVfxPrefab);
+            }
+
+            if (enemyDeathSfx != null)
+            {
+                enemy.SetDeathSfxClip(enemyDeathSfx);
+                enemy.SetDeathSfxVolume(enemyDeathSfxVolume);
+            }
+
             var col = go.GetComponent<Collider>();
             if (col == null)
             {
@@ -784,6 +825,13 @@ namespace ChogZombies.LevelGen
             }
             rb.useGravity = false;
             rb.isKinematic = true;
+
+            if (!string.IsNullOrEmpty(enemyLayerName))
+            {
+                int enemyLayer = LayerMask.NameToLayer(enemyLayerName);
+                if (enemyLayer >= 0)
+                    SetLayerRecursively(go.transform, enemyLayer);
+            }
         }
 
         void CreateChaserEnemyGroup(int enemyCount, Vector3 position)
@@ -855,6 +903,17 @@ namespace ChogZombies.LevelGen
             }
             chaser.Initialize(enemyCount, levelIndex);
 
+            if (chaserDeathVfxPrefab != null)
+            {
+                chaser.SetDeathVfxPrefab(chaserDeathVfxPrefab);
+            }
+
+            if (chaserDeathSfx != null)
+            {
+                chaser.SetDeathSfxClip(chaserDeathSfx);
+                chaser.SetDeathSfxVolume(chaserDeathSfxVolume);
+            }
+
             var col = go.GetComponent<Collider>();
             if (col == null)
             {
@@ -869,6 +928,13 @@ namespace ChogZombies.LevelGen
             }
             rb.useGravity = false;
             rb.isKinematic = true;
+
+            if (!string.IsNullOrEmpty(enemyLayerName))
+            {
+                int enemyLayer = LayerMask.NameToLayer(enemyLayerName);
+                if (enemyLayer >= 0)
+                    SetLayerRecursively(go.transform, enemyLayer);
+            }
         }
 
         void CreateBoss(BossData boss, Vector3 position)
@@ -945,6 +1011,17 @@ namespace ChogZombies.LevelGen
             }
             bossBehaviour.Initialize(boss);
             bossBehaviour.SetEngageDistance(bossEngageDistance);
+
+            if (bossDeathVfxPrefab != null)
+            {
+                bossBehaviour.SetDeathVfxPrefab(bossDeathVfxPrefab);
+            }
+
+            if (bossDeathSfx != null)
+            {
+                bossBehaviour.SetDeathSfxClip(bossDeathSfx);
+                bossBehaviour.SetDeathSfxVolume(bossDeathSfxVolume);
+            }
 
             var col = go.GetComponent<Collider>();
             if (col == null)

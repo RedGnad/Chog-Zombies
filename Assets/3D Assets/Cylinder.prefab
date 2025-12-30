@@ -129,3 +129,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ChogZombies.Game.CoinPickup
   goldAmount: 1
   rotationSpeed: 90
+  pickupSfx: {fileID: 8300000, guid: 013704cb794b34159ba876c8d8b8888a, type: 3}
+  pickupSfxVolume: 0.725

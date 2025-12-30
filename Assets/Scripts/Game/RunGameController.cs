@@ -95,6 +95,18 @@ namespace ChogZombies.Game
         Quaternion _playerSpawnRotation;
         bool _playerSpawnCaptured;
 
+        public static RunGameController Instance { get; private set; }
+
+        void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            Instance = this;
+        }
+
         int DeriveLevelSeed(int runBaseSeed, int levelIndex)
         {
             unchecked
@@ -107,6 +119,9 @@ namespace ChogZombies.Game
                 return x;
             }
         }
+
+        public RunState State => _state;
+        public int Seed => seed;
 
         public bool IsBossLootVrfAvailable => _state == RunState.Won && useVrfForBossLoot && !_lootRolled && !_bossLootVrfInFlight;
 
@@ -292,22 +307,11 @@ namespace ChogZombies.Game
 
         public static int CurrentLevelIndex => s_currentLevelIndex;
         public static int CurrentGold => s_currentGold;
-        public RunState State => _state;
-        public int Seed => seed;
-
-        void Awake()
-        {
-            if (s_currentLevelIndex <= 0)
-            {
-                s_currentLevelIndex = Mathf.Max(1, startingLevelIndex);
-                s_currentGold = Mathf.Max(0, startingGold);
-            }
-
-            _startupCts = new CancellationTokenSource();
-        }
-
         void OnDestroy()
         {
+            if (Instance == this)
+                Instance = null;
+
             _startupCts?.Cancel();
             _startupCts?.Dispose();
             _startupCts = null;

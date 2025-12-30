@@ -31,10 +31,10 @@ Transform:
   m_LocalScale: {x: 1.7287, y: 1.7287, z: 1.7287}
   m_ConstrainProportionsScale: 1
   m_Children:
-  - {fileID: 1969707601232006920}
-  - {fileID: 7708901136198739182}
   - {fileID: 1829221440411602585}
+  - {fileID: 1969707601232006920}
   - {fileID: 7749380640718744416}
+  - {fileID: 7708901136198739182}
   - {fileID: 7876290652803175141}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -100,6 +100,8 @@ MonoBehaviour:
   newBadge: {fileID: 0}
   equippedMarker: {fileID: 1236808195286926140}
   lockedOverlay: {fileID: 1801308783469354580}
+  lockedIconTint: {r: 0.05, g: 0.05, b: 0.05, a: 1}
+  lockedOverlayAlpha: 0.4
   hoverScale: 1.1
   normalScale: 1
   scaleSpeed: 10
@@ -211,6 +213,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: EquipedIcon
       objectReference: {fileID: 0}
+    - target: {fileID: 8267231455722675306, guid: 6d6515e3938f14b39846dd6b83244cbb, type: 3}
+      propertyPath: m_Type
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8267231455722675306, guid: 6d6515e3938f14b39846dd6b83244cbb, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
     - target: {fileID: 8267231455722675306, guid: 6d6515e3938f14b39846dd6b83244cbb, type: 3}
       propertyPath: m_Color.a
       value: 0.45490196
@@ -333,6 +343,10 @@ PrefabInstance:
     - target: {fileID: 2040662722677614018, guid: be17fd44e35e94f13ad1381fbdb38567, type: 3}
       propertyPath: m_Name
       value: GlowImage
+      objectReference: {fileID: 0}
+    - target: {fileID: 8267231455722675306, guid: be17fd44e35e94f13ad1381fbdb38567, type: 3}
+      propertyPath: m_Color.a
+      value: 0.65882355
       objectReference: {fileID: 0}
     - target: {fileID: 8267231455722675306, guid: be17fd44e35e94f13ad1381fbdb38567, type: 3}
       propertyPath: m_Color.b

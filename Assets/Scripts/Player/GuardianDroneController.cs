@@ -13,6 +13,7 @@ namespace ChogZombies.Player
     {
         [SerializeField] PlayerCombatController player;
         [SerializeField] GameObject droneVisualPrefab;
+        [SerializeField] Vector3 droneScale = Vector3.one;
         [SerializeField, Min(1)] int maxDrones = 3;
         [SerializeField, Min(0.1f)] float orbitRadius = 1.8f;
         [SerializeField, Min(0f)] float orbitHeight = 1.4f;
@@ -31,6 +32,21 @@ namespace ChogZombies.Player
         {
             if (player == null)
                 player = GetComponentInParent<PlayerCombatController>();
+
+            // Si aucun prefab de projectile n'est assigné pour les drones, on réutilise
+            // automatiquement celui du joueur pour garantir un visuel cohérent.
+            if (projectilePrefab == null && player != null && player.ProjectilePrefab != null)
+            {
+                projectilePrefab = player.ProjectilePrefab;
+            }
+
+            // Si aucun tuning spécifique n'est défini, on hérite des valeurs du joueur
+            // pour que les balles de drone soient identiques visuellement.
+            if (player != null)
+            {
+                if (Mathf.Abs(projectileSpeed - 18f) < 0.01f)
+                    projectileSpeed = player.ProjectileSpeed;
+            }
         }
 
         void OnDisable()
@@ -89,7 +105,7 @@ namespace ChogZombies.Player
 
         void HandleShooting(float power)
         {
-            if (power <= 0f || projectilePrefab == null)
+            if (power <= 0f)
             {
                 _fireTimer = 0f;
                 return;
@@ -107,13 +123,19 @@ namespace ChogZombies.Player
                 if (t == null)
                     continue;
 
+                // Direction principale vers l'avant du joueur pour coller au gameplay runner.
                 Vector3 dir = player != null ? player.transform.forward : t.forward;
-                Projectile.SpawnProjectile(t.position, dir.normalized, projectileSpeed, projectileDamage, Vector3.one * 0.3f, 1f, projectilePrefab);
+
+                // Réutiliser autant que possible les paramètres du joueur.
+                Vector3 scale = player != null ? player.ProjectileScale : Vector3.one * 0.3f;
+                float life = player != null ? player.ProjectileLifetime : 1f;
+
+                Projectile.SpawnProjectile(t.position, dir.normalized, projectileSpeed, projectileDamage, scale, life, projectilePrefab);
             }
 
             if (debugGuardianLogs)
             {
-                Debug.Log($"[GuardianDrone] Fired volley. power={power:F2} drones={_droneInstances.Count}");
+                Debug.Log($"[GuardianDrone] Fired volley. power={power:F2} drones={_droneInstances.Count} speed={projectileSpeed:F1} dmg={projectileDamage:F1} prefab={(projectilePrefab != null ? projectilePrefab.name : "<null>")}");
             }
         }
 
@@ -148,13 +170,21 @@ namespace ChogZombies.Player
                 var collider = go.GetComponent<Collider>();
                 if (collider != null)
                     Destroy(collider);
-                go.transform.localScale = Vector3.one * 0.25f;
+                var fallbackScale = droneScale == Vector3.zero ? Vector3.one * 0.25f : droneScale;
+                go.transform.localScale = fallbackScale;
                 var renderer = go.GetComponent<Renderer>();
                 if (renderer != null)
                     renderer.sharedMaterial = null;
             }
 
             go.name = "GuardianDrone";
+
+            // Appliquer la scale configurée au prefab visuel si elle est non nulle.
+            if (droneVisualPrefab != null)
+            {
+                if (droneScale != Vector3.zero)
+                    go.transform.localScale = droneScale;
+            }
             return go.transform;
         }
 

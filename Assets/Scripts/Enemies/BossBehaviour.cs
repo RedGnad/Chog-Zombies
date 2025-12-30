@@ -20,6 +20,9 @@ namespace ChogZombies.Enemies
         [SerializeField] string attackTriggerName = "Attack";
         [SerializeField] float attackAnimDuration = 0.5f;
         [SerializeField] float attackAnimLeadTime = 0.5f;
+        [SerializeField] GameObject deathVfxPrefab;
+        [SerializeField] AudioClip deathSfxClip;
+        [SerializeField, Range(0f, 1f)] float deathSfxVolume = 1f;
 
         int _currentHp;
         BossData _data;
@@ -27,6 +30,7 @@ namespace ChogZombies.Enemies
         float _attackTimer;
         float _effectiveAttackInterval;
         PlayerCombatController _player;
+        float _spikeAuraAccumulatedDamage;
 
         static BossBehaviour _activeInstance;
 
@@ -38,6 +42,21 @@ namespace ChogZombies.Enemies
         {
             get => engageDistance;
             private set => engageDistance = Mathf.Max(0f, value);
+        }
+
+        public void SetDeathVfxPrefab(GameObject prefab)
+        {
+            deathVfxPrefab = prefab;
+        }
+
+        public void SetDeathSfxClip(AudioClip clip)
+        {
+            deathSfxClip = clip;
+        }
+
+        public void SetDeathSfxVolume(float volume)
+        {
+            deathSfxVolume = Mathf.Clamp01(volume);
         }
 
         void Awake()
@@ -62,6 +81,13 @@ namespace ChogZombies.Enemies
             // bornée par l'intervalle effectif.
             _activeInstance = this;
 
+            // S'assurer que le SFX de mort est prêt à être lu (important en WebGL
+            // où les clips peuvent être chargés en arrière-plan).
+            if (deathSfxClip != null && !deathSfxClip.preloadAudioData)
+            {
+                deathSfxClip.LoadAudioData();
+            }
+
             if (_data != null)
             {
                 float factor = Mathf.Max(0.01f, damageToSoldiersFactor);
@@ -83,6 +109,22 @@ namespace ChogZombies.Enemies
             if (_currentHp <= 0)
             {
                 Debug.Log("Boss defeated!");
+
+                if (deathVfxPrefab != null)
+                {
+                    var vfx = Instantiate(deathVfxPrefab, transform.position, Quaternion.identity);
+                    var ps = vfx.GetComponent<ParticleSystem>();
+                    if (ps != null)
+                        Destroy(vfx, ps.main.duration + ps.main.startLifetime.constantMax);
+                    else
+                        Destroy(vfx, 2f);
+                }
+
+                if (deathSfxClip != null)
+                {
+                    AudioSource.PlayClipAtPoint(deathSfxClip, transform.position, deathSfxVolume);
+                }
+
                 Destroy(gameObject);
             }
         }
@@ -106,6 +148,8 @@ namespace ChogZombies.Enemies
                 Debug.Log("Run failed: player defeated by boss.");
                 return;
             }
+
+            ApplySpikeAuraDamage();
             // 2) Gérer l'intervalle entre le début de deux télégraphes
             _attackTimer += Time.deltaTime;
             float interval = _effectiveAttackInterval;
@@ -114,6 +158,36 @@ namespace ChogZombies.Enemies
                 _attackTimer -= interval;
                 TriggerAttackAnimation();
             }
+        }
+
+        void ApplySpikeAuraDamage()
+        {
+            var player = _player != null ? _player : PlayerCombatController.Main;
+            if (player == null)
+                return;
+
+            float radius;
+            if (!player.TryGetActiveSpikeAuraRadius(out radius))
+                return;
+
+            float auraDps = Mathf.Max(0f, Loot.RunMetaEffects.SpikeAuraDamagePerSecond);
+            if (auraDps <= 0f)
+                return;
+
+            Vector3 center = player.transform.position;
+            Vector3 pos = transform.position;
+            float radiusSqr = radius * radius;
+            float distSqr = (pos - center).sqrMagnitude;
+            if (distSqr > radiusSqr)
+                return;
+
+            _spikeAuraAccumulatedDamage += auraDps * Time.deltaTime;
+            int dmgInt = Mathf.FloorToInt(_spikeAuraAccumulatedDamage);
+            if (dmgInt <= 0)
+                return;
+
+            _spikeAuraAccumulatedDamage -= dmgInt;
+            TakeDamage(dmgInt);
         }
 
         void TriggerAttackAnimation()

@@ -50,6 +50,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b2d4c917f62da44b18ef690ae0ebd3ef, type: 2}
   - {fileID: 11400000, guid: 78377f5ddb5a646c1ae9027ba2154a0b, type: 2}
   - {fileID: 11400000, guid: aeeba769dc4124b49b254d05da644c4d, type: 2}
+  - {fileID: 11400000, guid: 0c54c4c63c533453bae87fd4bfef4c8a, type: 2}
+  - {fileID: 11400000, guid: 034314c310d544741b5e779cc3a43103, type: 2}
+  - {fileID: 11400000, guid: 12b7ad00630624e5986c55c9e77c0def, type: 2}
+  - {fileID: 11400000, guid: d1e0ef618ea4443cfa35c2445c27e508, type: 2}
   rarityWeights:
   - rarity: 0
     weight: 50

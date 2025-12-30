@@ -319,7 +319,10 @@ namespace ChogZombies.Loot
 
         float ComputeSpikeAuraDamageFromValue(float effectPoints)
         {
-            return Mathf.Max(0f, effectPoints) * Mathf.Max(0f, spikeAuraDamagePerEffectPoint);
+            // On applique un multiplicateur global pour rendre l'aura nettement plus
+            // perceptible en termes de DPS par point d'effet.
+            const float spikeAuraDpsMultiplier = 5f;
+            return Mathf.Max(0f, effectPoints) * Mathf.Max(0f, spikeAuraDamagePerEffectPoint) * spikeAuraDpsMultiplier;
         }
 
         float ComputeSpikeAuraRadiusFromValue(float effectPoints)

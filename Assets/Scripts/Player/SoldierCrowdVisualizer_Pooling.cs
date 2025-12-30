@@ -58,6 +58,8 @@ namespace ChogZombies.Player
             for (int i = 0; i < poolSize; i++)
             {
                 var go = Instantiate(soldierPrefab, transform);
+                if (go.GetComponent<SoldierVisualMarker>() == null)
+                    go.AddComponent<SoldierVisualMarker>();
                 MakeInstanceVisualOnly(go);
                 // Ajuster la taille des soldats supplémentaires pour éviter qu'ils soient trop petits
                 if (soldierScaleMultiplier > 0f)
