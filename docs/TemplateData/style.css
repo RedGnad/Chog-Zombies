@@ -20,10 +20,11 @@ body { padding: 0; margin: 0; background-color: #0d0021; }
   width: 100%;
   text-align: center;
   padding-top: 20px;
+  margin-bottom: 10px;
 }
 
 #chog-logo {
-  max-width: 50vw;
-  max-height: 120px;
+  max-width: 45vw;
+  max-height: 100px;
   height: auto;
 }
