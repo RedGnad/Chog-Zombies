@@ -56,9 +56,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d1e0ef618ea4443cfa35c2445c27e508, type: 2}
   rarityWeights:
   - rarity: 0
-    weight: 50
+    weight: 55
   - rarity: 4
-    weight: 25
+    weight: 30
   - rarity: 1
     weight: 17
   - rarity: 2

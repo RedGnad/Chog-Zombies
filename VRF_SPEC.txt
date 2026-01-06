@@ -1,0 +1,104 @@
+CHOG ZOMBIES – VRF & RANDOMNESS SPEC
+
+1. Scope
+- Run seed (per run / per level) can be sourced from VRF (Pyth Entropy or Switchboard).
+- Boss loot roll can be sourced from VRF.
+- Shop offers (initial + rerolls) are derived deterministically from the run seed.
+
+2. Run seed
+- Field: RunGameController.seed (per-level seed).
+- Base seed per run: runBaseSeed (per wallet), cached statically and persisted in backend.
+- When VRF is enabled for run seed:
+  - Pyth Entropy (primary):
+    - An on-chain randomness is requested via Pyth Entropy for the connected wallet.
+    - PythEntropyRandomnessService computes an integer runBaseSeed from the VRF output.
+  - Switchboard (fallback):
+    - SwitchboardRandomnessService requests randomness and derives an integer runBaseSeed from the VRF output.
+
+- Per-level seed derivation (C# in RunGameController.DeriveLevelSeed):
+  - Input: runBaseSeed (int), levelIndex (int).
+  - Output: levelSeed (int) stored in RunGameController.seed.
+  - Formula (unchecked 32-bit int):
+    x = runBaseSeed
+    x ^= levelIndex * 73856093
+    x ^= (x << 13)
+    x ^= (x >> 17)
+    x ^= (x << 5)
+    levelSeed = x
+
+3. Shop offers (ShopController)
+- RNG seed for the shop is derived from the current level seed, the level index and the reroll count.
+- Fields:
+  - runGame.Seed        : levelSeed (see section 2).
+  - RunGameController.CurrentLevelIndex : levelIndex.
+  - _rerollCount (int)  : number of rerolls already performed for this shop.
+
+- Shop RNG seed (C# in ShopController.GenerateOffers):
+  baseSeed = runGame.Seed
+  levelIndex = RunGameController.CurrentLevelIndex
+  rngSeed = baseSeed
+            ^ (levelIndex * 19349663)
+            ^ 0x1234abcd
+            ^ (_rerollCount * 0x9e3779b9)
+
+- RNG instance:
+  rng = new System.Random(rngSeed)
+
+- Loot selection (C# in LootTable.RollItem):
+  - Items are grouped by LootRarity.
+  - Rarity is drawn with weighted probabilities (rarityWeights[]).
+    - totalWeight = sum of weights for all rarities present in the table.
+    - roll = rng.NextDouble() * totalWeight
+    - Iterate rarityWeights in order and pick the first where accumulatedWeight >= roll.
+  - Within the chosen rarity, one item is picked uniformly:
+    - index = rng.Next(0, candidates.Count)
+
+- Unique offers mode (ShopController.uniqueOffers = true):
+  - The shop keeps a HashSet of used LootItemDefinition.
+  - When drawing an offer, already owned or already used items are skipped up to a fixed maxAttempts.
+
+4. Rerolls (ShopController.TryReroll)
+- Reroll changes the deterministic seed by incrementing _rerollCount:
+  - On successful reroll:
+    _offersGenerated = false
+    _rerollCount++
+    GenerateOffers()
+- Because rngSeed is a pure function of (runGame.Seed, levelIndex, _rerollCount),
+  all shop states (initial + each reroll) are deterministically derived from the original VRF run seed.
+
+5. Boss loot
+- Boss loot uses its own RNG seed, which can come from VRF.
+- When Pyth Entropy is used for boss loot:
+  - pythSeed = PythEntropyRandomnessService.RequestBossLootSeedAsync(...)
+  - rngSeed = (levelIndex * 73856093) ^ 0x9e3779b9 ^ pythSeed
+- When Switchboard VRF is used for boss loot:
+  - randomness = SwitchboardRandomnessService.RequestAndSettleRandomnessAsync(...)
+  - baseSeed = vrfService.DeriveSeed(randomness.Value)
+  - rngSeed = (levelIndex * 73856093) ^ baseSeed
+- Boss loot selection then uses the same LootTable.RollItem(System.Random rng) logic as in section 3.
+
+6. External verification (high level)
+- Prerequisites for a player or auditor:
+  - Access to the on-chain randomness / seed used for the run or boss loot (Pyth / Switchboard docs).
+  - Access to this repository (C# sources for RunGameController, ShopController, LootTable).
+
+- To verify a run:
+  1) Recover runBaseSeed for the wallet and run from the VRF provider (Pyth Entropy or Switchboard),
+     following their official documentation for Monad mainnet.
+  2) For a given levelIndex, compute levelSeed with DeriveLevelSeed(runBaseSeed, levelIndex).
+  3) For the shop at this level and a given rerollCount, compute rngSeed exactly as in section 3.
+  4) Instantiate System.Random(rngSeed) and replay LootTable.RollItem(rng) to recompute offers.
+  5) Compare the recomputed offers with what was observed in game.
+
+- Example helper code:
+  - See file `VrfShopVerificationExample.cs` at the project root.
+  - It contains pure C# methods to derive:
+    - levelSeed from runBaseSeed and levelIndex,
+    - shopRngSeed from levelSeed, levelIndex and rerollCount,
+    - a small console entry-point that prints deterministic seeds and first RNG values.
+
+7. Notes
+- If `usePythEntropyForRunSeed` or `useVrfForRunSeed` is enabled in RunGameController,
+  then the shop RNG (initial offers + rerolls) is fully determined by the VRF-backed runBaseSeed.
+- If both flags are disabled, the runBaseSeed/seed come from local configuration only and
+  the randomness is not VRF-backed, but the same deterministic derivation logic still applies.

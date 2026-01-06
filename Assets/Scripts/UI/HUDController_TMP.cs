@@ -114,10 +114,10 @@ namespace ChogZombies.UI
                         hintText.text = "";
                         break;
                     case RunGameController.RunState.Won:
-                        hintText.text = "Victory! Press N for next level.";
+                        hintText.text = "VICTORY!";
                         break;
                     case RunGameController.RunState.Lost:
-                        hintText.text = "Defeat. Press R to retry.";
+                        hintText.text = "DEFEAT!";
                         break;
                 }
             }

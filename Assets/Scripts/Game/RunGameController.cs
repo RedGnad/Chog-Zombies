@@ -105,6 +105,23 @@ namespace ChogZombies.Game
                 return;
             }
             Instance = this;
+
+            // Désactiver les logs en build pour éviter le coût important de Debug.Log
+            // en WebGL / IL2CPP, tout en les conservant dans les builds de debug.
+#if !UNITY_EDITOR
+            Debug.unityLogger.logEnabled = Debug.isDebugBuild;
+#endif
+
+            // Stabiliser le framerate cible pour limiter les variations de charge CPU.
+            if (Application.targetFrameRate < 60)
+                Application.targetFrameRate = 60;
+
+            // Initialiser l'index de niveau courant au premier lancement pour
+            // éviter l'affichage "Level: -" dans le HUD.
+            if (s_currentLevelIndex <= 0)
+            {
+                s_currentLevelIndex = Mathf.Max(1, startingLevelIndex);
+            }
         }
 
         int DeriveLevelSeed(int runBaseSeed, int levelIndex)

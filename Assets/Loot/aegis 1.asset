@@ -19,6 +19,6 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: d7b69cd4910c54a139839279d9f41f2d, type: 3}
   rarity: 5
   effectType: 14
-  effectValue: 3
+  effectValue: 1
   dropWeight: 0.1
   runOnly: 0

@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: drone
   description: guardian drone
   icon: {fileID: 21300000, guid: 7bdcae8f9071b47049833373f333aa14, type: 3}
-  rarity: 1
+  rarity: 5
   effectType: 13
   effectValue: 3
   dropWeight: 0.1

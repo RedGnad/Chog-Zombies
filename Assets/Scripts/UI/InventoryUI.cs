@@ -403,6 +403,7 @@ namespace ChogZombies.UI
                 scaled = Mathf.Max(0f, item.EffectValue);
 
             float percent = scaled * 100f;
+            int charges = Mathf.RoundToInt(scaled);
 
             return item.EffectType switch
             {
@@ -414,6 +415,13 @@ namespace ChogZombies.UI
                 LootEffectType.ExtraCoinsOnMap => $"+{percent:F0}% extra coins on map",
                 LootEffectType.StartRunPowerBoost => $"+{percent:F0}% start power",
                 LootEffectType.PersistentStartPower => $"+{percent:F0}% permanent start power",
+                LootEffectType.RunLootLuck => $"+{percent:F0}% loot luck",
+                LootEffectType.PersistentLootLuck => $"+{percent:F0}% loot luck",
+                LootEffectType.ContactDamage => $"+{percent:F0}% AoE",
+                LootEffectType.GuardianDrone => $"+{percent:F0}% drones",
+                LootEffectType.AegisCharges => charges > 1
+                    ? $"+{charges} revival charges"
+                    : $"+{charges} revival",
                 _ => $"+{percent:F0}%"
             };
         }

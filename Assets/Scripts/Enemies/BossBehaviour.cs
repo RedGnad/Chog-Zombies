@@ -10,6 +10,7 @@ namespace ChogZombies.Enemies
     public class BossBehaviour : MonoBehaviour
     {
         [SerializeField] int maxHp;
+        [SerializeField] bool allowSpikeAuraDamage = false;
         [Header("Boss Fight")]
         [SerializeField] float attackInterval = 0.5f;
         [SerializeField] float damageToSoldiersFactor = 0.3f;
@@ -162,6 +163,9 @@ namespace ChogZombies.Enemies
 
         void ApplySpikeAuraDamage()
         {
+            if (!allowSpikeAuraDamage)
+                return;
+
             var player = _player != null ? _player : PlayerCombatController.Main;
             if (player == null)
                 return;
